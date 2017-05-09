@@ -2,6 +2,9 @@
 #include <vector>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/opencv.hpp>
+
+#include "mpi.h"
 
 using namespace cv;
 using namespace std;
@@ -29,5 +32,7 @@ void imageIntegrale(const Mat& input, Mat& output)
 
 int main(int argc, char **argv)
 {
+	MPI_Init(&argc, &argv);
+	MPI_Finalize();
 	return 0;
 }

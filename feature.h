@@ -1,6 +1,11 @@
 #ifndef FEATURE
 #define FEATURE
 
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/opencv.hpp>
+
+using namespace cv;
+
 #define MAX_WIDTH 92
 #define MAX_HEIGHT 112
 
@@ -15,7 +20,7 @@ enum FeatureType {
 	quadrupleV
 };
 
-float rectangleVal(const Mat& integralImage, int xmin, int ymin, int xmax, int ymax) const;
+float rectangleVal(const Mat& integralImage, int xmin, int ymin, int xmax, int ymax);
 
 class Feature
 {

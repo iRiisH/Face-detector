@@ -1,4 +1,4 @@
-#include "rectangle.h"
+#include "feature.h"
 
 
 FeatureType type;
@@ -43,13 +43,13 @@ bool Feature::fits() const
 		verticalFact = 2;
 		break;
 	}
-	width = horizontalFact * rectangleWidth;
-	height = verticalFact * rectangleHeight;
+	int width = horizontalFact * rectangleWidth;
+	int height = verticalFact * rectangleHeight;
 	return (origX >= 0 && origY >= 0)
 		&& (origX + width < MAX_WIDTH && origY + height < MAX_HEIGHT);
 }
 
-float rectangleVal(const Mat& integralImage, int xmin, int ymin, int xmax, int ymax) const
+float rectangleVal(const Mat& integralImage, int xmin, int ymin, int xmax, int ymax)
 {
 	float a = integralImage.at<float>(ymin, xmin);
 	float b = integralImage.at<float>(ymin, xmax);
