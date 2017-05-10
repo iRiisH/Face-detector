@@ -21,13 +21,13 @@ bool Feature::fits() const
 	{
 	case doubleH1:
 	case doubleH2:
-		horizontalFact = 2;
-		verticalFact = 1;
+		horizontalFact = 1;
+		verticalFact = 2;
 		break;
 	case doubleV1:
 	case doubleV2:
-		horizontalFact = 1;
-		verticalFact = 2;
+		horizontalFact = 2;
+		verticalFact = 1;
 		break;
 	case tripleH:
 		horizontalFact = 3;
@@ -73,7 +73,7 @@ float Feature::val(const Mat& integralImage) const
 		break;
 	case doubleH2:
 		vPos = rectangleVal(integralImage, origX, origY, origX + rectangleWidth,
-			origY + rectangleHeight);
+			origY + rectangleHeight); 
 		vNeg = rectangleVal(integralImage, origX, origY + rectangleHeight,
 			origX + rectangleWidth, origY + 2 * rectangleHeight);
 		res = vPos - vNeg;

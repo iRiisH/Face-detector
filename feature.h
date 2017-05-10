@@ -3,11 +3,13 @@
 
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
+#include <iostream>
 
 using namespace cv;
+using namespace std; 
 
-#define MAX_WIDTH 92
-#define MAX_HEIGHT 112
+#define MAX_WIDTH 112
+#define MAX_HEIGHT 92
 
 enum FeatureType {
 	doubleH1 = 0,

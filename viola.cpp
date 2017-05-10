@@ -45,7 +45,7 @@ void intToDimensions(int n, int &x, int &y, int &w, int &h)
 	x = 4 * reste;
 }
 
-void calcFeatures(Mat& ii, vector<float> result)
+void calcFeatures(Mat& ii, vector<float>& result)
 {
 	int rank, size;
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -59,7 +59,8 @@ void calcFeatures(Mat& ii, vector<float> result)
 		{
 			FeatureType ftype = (FeatureType)type;
 			Feature f(ftype, w, h, x, y);
-			if (!f.fits())
+
+			if (!f.fits() || w == 0 || h == 0 || w < 8 || h < 8)
 				continue;
 			result.push_back(f.val(ii));
 		}
@@ -70,8 +71,16 @@ int main(int argc, char **argv)
 {
 	int p;
 	MPI_Init(&argc, &argv);
-	MPI_Comm_size(MPI_COMM_WORLD, &p);
-	cout << "Number of available processors : " << p << endl;
+	
+	Mat image;
+	image = imread("../im1.jpg", CV_LOAD_IMAGE_GRAYSCALE);
+	image.convertTo(image, CV_32F);
+
+	Mat ii;
+	imageIntegrale(image, ii);
+	vector<float> features;
+	calcFeatures(ii, features);
+	cout << "Computed vector : " << features.size() << endl;
 	MPI_Finalize();
 	return 0;
 }
