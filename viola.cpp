@@ -69,9 +69,9 @@ void calcFeatures(Mat& ii, vector<float>& result)
 
 int main(int argc, char **argv)
 {
-	int p;
 	MPI_Init(&argc, &argv);
-	
+	srand(time(NULL));
+
 	Mat image;
 	image = imread("../im1.jpg", CV_LOAD_IMAGE_GRAYSCALE);
 	image.convertTo(image, CV_32F);
@@ -81,6 +81,8 @@ int main(int argc, char **argv)
 	vector<float> features;
 	calcFeatures(ii, features);
 	cout << "Computed vector : " << features.size() << endl;
+
 	MPI_Finalize();
 	return 0;
 }
+
