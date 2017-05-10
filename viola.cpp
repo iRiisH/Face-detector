@@ -47,9 +47,7 @@ void intToDimensions(int n, int &x, int &y, int &w, int &h)
 
 void calcFeatures(Mat& ii, vector<float>& result)
 {
-	int rank, size;
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	MPI_Comm_size(MPI_COMM_WORLD, &size);
+	
 	
 	for (int i = rank; i < 23 + 23 * 28 + 23 * 23 * 28 + 23 * 23 * 28 * 28; i+=size)
 	{
@@ -60,7 +58,7 @@ void calcFeatures(Mat& ii, vector<float>& result)
 			FeatureType ftype = (FeatureType)type;
 			Feature f(ftype, w, h, x, y);
 
-			if (!f.fits() || w == 0 || h == 0 || w < 8 || h < 8)
+			if (!f.fits() || w < 8 || h < 8)
 				continue;
 			result.push_back(f.val(ii));
 		}
@@ -69,8 +67,14 @@ void calcFeatures(Mat& ii, vector<float>& result)
 
 int main(int argc, char **argv)
 {
-	int p;
+	
+	
+	int rank, size;
+	
+	
 	MPI_Init(&argc, &argv);
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	MPI_Comm_size(MPI_COMM_WORLD, &size);
 	
 	Mat image;
 	image = imread("../im1.jpg", CV_LOAD_IMAGE_GRAYSCALE);
@@ -78,6 +82,7 @@ int main(int argc, char **argv)
 
 	Mat ii;
 	imageIntegrale(image, ii);
+	vector<float> localFeature;
 	vector<float> features;
 	calcFeatures(ii, features);
 	cout << "Computed vector : " << features.size() << endl;
