@@ -10,14 +10,14 @@ using namespace cv;
 #define MAX_HEIGHT 112
 
 enum FeatureType {
-	doubleH1,
-	doubleH2,
-	doubleV1,
-	doubleV2,
-	tripleH,
-	tripleV,
-	quadrupleH,
-	quadrupleV
+	doubleH1 = 0,
+	doubleH2 = 1,
+	doubleV1 = 2,
+	doubleV2 = 3,
+	tripleH = 4,
+	tripleV = 5,
+	quadrupleH = 6,
+	quadrupleV = 7
 };
 
 float rectangleVal(const Mat& integralImage, int xmin, int ymin, int xmax, int ymax);
