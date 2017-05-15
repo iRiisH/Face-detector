@@ -45,6 +45,17 @@ void intToDimensions(int n, int &x, int &y, int &w, int &h)
 	x = 4 * reste;
 }
 
+
+void filltab(vector<float>& localresult, vector<float>& tab, vector<float>& result){
+	for (int i=0; i<localresult.size();i++){
+		if (rank>1){
+		result[tab[rank-2]+i]=localresult[i]; }//see if rank -1 ou -2
+		else {
+			result[i]=localresult[i]; }
+		}
+	
+}
+
 void calcFeatures(Mat& ii, vector<float>& result)
 {
 	int rank, size;
@@ -60,11 +71,12 @@ void calcFeatures(Mat& ii, vector<float>& result)
 			FeatureType ftype = (FeatureType)type;
 			Feature f(ftype, w, h, x, y);
 
-			if (!f.fits() || w == 0 || h == 0 || w < 8 || h < 8)
+			if (!f.fits() || w < 8 || h < 8)
 				continue;
 			result.push_back(f.val(ii));
 		}
 	}
+	tab[rank]=result.size();
 }
 
 int main(int argc, char **argv)
@@ -72,15 +84,38 @@ int main(int argc, char **argv)
 	MPI_Init(&argc, &argv);
 	srand(time(NULL));
 
+
+	
+	int rank, size;
+	
+	srand(time(NULL));
+	MPI_Init(&argc, &argv);
+
+
+	int tab[size];
+	
 	Mat image;
 	image = imread("../im1.jpg", CV_LOAD_IMAGE_GRAYSCALE);
 	image.convertTo(image, CV_32F);
+	//pas besoin de broadcast ou scatter en fait je crois
 
 	Mat ii;
 	imageIntegrale(image, ii);
+	vector<float> localFeature;
 	vector<float> features;
-	calcFeatures(ii, features);
+	calcFeatures(ii, localFeature);
 	cout << "Computed vector : " << features.size() << endl;
+
+	if (rank==0) {
+		for (int i=1; i<size;i++) {
+			tab[i]=tab[i]+tab[i-1];}
+			}
+
+
+	MPI_Bcast(tab, size, MPI_INT, 0, MPI_COMM_WORLD);
+	MPI_Bcast(result, tab[size-1], MPI_INT, 0, MPI_COMM_WORLD);
+
+	filltab(localFeature, tab, features);
 
 	MPI_Finalize();
 	return 0;
