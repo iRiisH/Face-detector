@@ -11,6 +11,11 @@ using namespace std;
 #define MAX_WIDTH 112
 #define MAX_HEIGHT 92
 
+void imageIntegrale(const Mat& input, Mat& output);
+void intToDimensions(int n, int &x, int &y, int &w, int &h);
+void filltab(vector<float>& localresult, vector<float>& tab, vector<float>& result);
+void calcFeatures(Mat& ii, vector<float>& result);
+
 enum FeatureType {
 	doubleH1 = 0,
 	doubleH2 = 1,
