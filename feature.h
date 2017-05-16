@@ -3,10 +3,13 @@
 
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
+#include <mpi.h>
 #include <iostream>
 
 using namespace cv;
 using namespace std; 
+
+#define PROC_MASTER 0
 
 #define MAX_WIDTH 112
 #define MAX_HEIGHT 92
@@ -14,7 +17,8 @@ using namespace std;
 void imageIntegrale(const Mat& input, Mat& output);
 void intToDimensions(int n, int &x, int &y, int &w, int &h);
 void filltab(vector<float>& localresult, vector<float>& tab, vector<float>& result);
-void calcFeatures(Mat& ii, vector<float>& result);
+void calcLocalFeatures(Mat& ii, vector<float>& localResult)
+void calcFeatures(Mat& ii, float *finalResult)
 
 enum FeatureType {
 	doubleH1 = 0,
@@ -42,5 +46,16 @@ public :
 	
 	float val(const Mat& integralImage) const;
 };
+
+template<typename T>
+T* vectorToArray (vector<T> v)
+// don't forget to delete the array after use
+{
+	T* result = new T[v.size()];
+	for (int i = 0; i < v.size(); i++)
+		result[i] = v[i];
+	return result;
+}
+
 
 #endif
