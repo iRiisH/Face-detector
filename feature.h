@@ -17,8 +17,8 @@ using namespace std;
 void imageIntegrale(const Mat& input, Mat& output);
 void intToDimensions(int n, int &x, int &y, int &w, int &h);
 void filltab(vector<float>& localresult, vector<float>& tab, vector<float>& result);
-void calcLocalFeatures(Mat& ii, vector<float>& localResult)
-void calcFeatures(Mat& ii, float *finalResult)
+void calcLocalFeatures(Mat& ii, vector<float>& localResult);
+void calcFeatures(Mat& ii, float *finalResult, int& nFeatures);
 
 enum FeatureType {
 	doubleH1 = 0,

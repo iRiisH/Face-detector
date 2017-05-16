@@ -23,86 +23,6 @@ void imageIntegrale(const Mat& input, Mat& output)
 	}
 }
 
-void intToDimensions(int n, int &x, int &y, int &w, int &h)
-// this function is used to distribute efficiently the computation, given that there would
-// be four imbricated loops in a sequential algorithm
-{
-	// 112 / 4 = 28, 92 / 4 = 23
-	// n = h + 23 * w + 23 * 28 * y + 23 * 23 * 28 * x
-	h = 4 * (n % 23);
-	int reste = (n - (n % 23)) / 23;
-	w = 4 * (reste % 28);
-	reste = (reste - (reste % 28)) / 28;
-	y = 4 * (reste % 23);
-	reste = (reste - (reste % 23)) / 23;
-	x = 4 * reste;
-}
-
-
-void filltab(vector<float>& localresult, vector<float>& tab, vector<float>& result) {
-	for (int i = 0; i<localresult.size(); i++) {
-		if (rank ) {
-			result[tab[rank - 2] + i] = localresult[i];
-		}//see if rank -1 ou -2
-		else {
-			result[i] = localresult[i];
-		}
-	}
-
-}
-
-void calcLocalFeatures(Mat& ii, vector<float>& localResult)
-{
-	int rank, size;
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	MPI_Comm_size(MPI_COMM_WORLD, &size);
-
-	for (int i = rank; i < 23 + 23 * 28 + 23 * 23 * 28 + 23 * 23 * 28 * 28; i += size)
-	{
-		int x, y, w, h;
-		intToDimensions(i, x, y, w, h);
-		for (int type = 0; type <= 7; type++)
-		{
-			FeatureType ftype = (FeatureType)type;
-			Feature f(ftype, w, h, x, y);
-
-			if (!f.fits() || w < 8 || h < 8)
-				continue;
-			localResult.push_back(f.val(ii));
-		}
-	}
-}
-
-void calcFeatures(Mat& ii, float *finalResult)
-// we have to be careful when regrouping the features, because doing it sequentially 
-// would suppress the acceleration we got from distributed computation of the features
-{
-	int rank, size;
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	MPI_Comm_size(MPI_COMM_WORLD, &size);
-	vector<float> v;
-	calcLocalFeatures(ii, v);
-	float* localResult = vectorToArray<float>(v);
-	int localSize = v.size();
-	int* sizes = new int[size];
-	MPI_Gather(&localSize, 1, MPI_INT, sizes, 1, MPI_INT, PROC_MASTER, MPI_COMM_WORLD);
-	int totalSize = 0;
-	if (rank == PROC_MASTER)
-	{
-		for (int i = 0; i < size; i++)
-			totalSize+= sizes[i];
-	}
-	int finalSize = 0;
-	float *result = new float[totalSize];
-	MPI_Bcast(&totalSize, 1, MPI_INT, &finalSize, 1, MPI_INT, PROC_MASTER, MPI_COMM_WORLD);
-	finalResult = new float[finalSize];
-	MPI_Gatherv(localResult, localSize, MPI_FLOAT, result, sizes, sizes, MPI_FLOAT,
-		PROC_MASTER, MPI_COMM_WORLD);
-	MPI_Bcast(result, totalSize, MPI_FLOAT, finalResult, totalSize, MPI_FLOAT,
-		PROC_MASTER, MPI_COMM_WORLD);
-	delete localResult;
-	delete result;
-}
 
 Feature::Feature (FeatureType t, int rectangleW, int rectangleH, int oX, int oY) :
 	type (t), rectangleWidth (rectangleW), rectangleHeight (rectangleH),
@@ -233,4 +153,85 @@ float Feature::val(const Mat& integralImage) const
 		break;
 	}
 	return res;
+}
+
+
+void intToDimensions(int n, int &x, int &y, int &w, int &h)
+// this function is used to distribute efficiently the computation, given that there would
+// be four imbricated loops in a sequential algorithm
+{
+	// 112 / 4 = 28, 92 / 4 = 23
+	// n = h + 23 * w + 23 * 28 * y + 23 * 23 * 28 * x
+	h = 4 * (n % 23);
+	int reste = (n - (n % 23)) / 23;
+	w = 4 * (reste % 28);
+	reste = (reste - (reste % 28)) / 28;
+	y = 4 * (reste % 23);
+	reste = (reste - (reste % 23)) / 23;
+	x = 4 * reste;
+}
+
+/*
+void filltab(vector<float>& localresult, vector<float>& tab, vector<float>& result) {
+for (int i = 0; i<localresult.size(); i++) {
+if (rank ) {
+result[tab[rank - 2] + i] = localresult[i];
+}//see if rank -1 ou -2
+else {
+result[i] = localresult[i];
+}
+}
+
+}*/
+
+void calcLocalFeatures(Mat& ii, vector<float>& localResult)
+{
+	int rank, size;
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+	for (int i = rank; i < 23 + 23 * 28 + 23 * 23 * 28 + 23 * 23 * 28 * 28; i += size)
+	{
+		int x, y, w, h;
+		intToDimensions(i, x, y, w, h);
+		for (int type = 0; type <= 7; type++)
+		{
+			FeatureType ftype = (FeatureType)type;
+			Feature f(ftype, w, h, x, y);
+
+			if (!f.fits() || w < 8 || h < 8)
+				continue;
+			localResult.push_back(f.val(ii));
+		}
+	}
+}
+
+void calcFeatures(Mat& ii, float *result, int& nFeatures)
+// we have to be careful when regrouping the features, because doing it sequentially 
+// would suppress the acceleration we got from distributed computation of the features
+{
+	int rank, size;
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	MPI_Comm_size(MPI_COMM_WORLD, &size);
+	vector<float> v;
+	calcLocalFeatures(ii, v);
+	float* localResult = vectorToArray<float>(v);
+	int localSize = v.size();
+	int* sizes = new int[size];
+	MPI_Gather(&localSize, 1, MPI_INT, sizes, 1, MPI_INT, PROC_MASTER, MPI_COMM_WORLD);
+	int totalSize = 0;
+	if (rank == PROC_MASTER)
+	{
+		for (int i = 0; i < size; i++)
+			totalSize += sizes[i];
+	}
+	int finalSize = 0;
+	
+	MPI_Bcast(&totalSize, 1, MPI_INT, PROC_MASTER, MPI_COMM_WORLD);
+	result = new float[totalSize];
+	MPI_Gatherv(localResult, localSize, MPI_FLOAT, result, sizes, sizes, MPI_FLOAT,
+		PROC_MASTER, MPI_COMM_WORLD);
+	MPI_Bcast(result, totalSize, MPI_FLOAT, PROC_MASTER, MPI_COMM_WORLD);
+	delete localResult;
+	nFeatures = finalSize;
 }

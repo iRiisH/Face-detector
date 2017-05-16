@@ -49,15 +49,15 @@ void train (WeakClassifier* wc, int nFeatures)
 		{
 			pickRandomImage(img, c_k);
 			imageIntegrale(img, ii);
-
-			calcFeatures(ii, featuresVec); // this function is already distributed
+			int nF;
+			calcFeatures(ii, featuresVec, nF); // this function is already distributed
 			// there is no need to make several processors compute these features
 		}
 		MPI_Bcast(featuresVec, nFeatures, MPI_FLOAT, PROC_MASTER, MPI_COMM_WORLD);
 		
 		for (int j = rank; j < nFeatures; j+= size)
 		{
-			train_step(featuresVec[j], c_k);
+			wc[i].train_step(featuresVec[j], c_k);
 		}
 		MPI_Barrier(MPI_COMM_WORLD);
 	}
@@ -68,11 +68,12 @@ bool testImg(WeakClassifier* wc, int nFeatures, const Mat& img)
 	Mat ii;
 	imageIntegrale(img, ii);
 	float *featuresVec = new float[nFeatures];
-	calcFeatures(ii, featuresVec);
+	int nF;
+	calcFeatures(ii, featuresVec, nF);
 	int score = 0;
 	for (int i = 0; i < nFeatures; i++)
 	{
-		score += h(featuresVec[i]);
+		score += wc[i].h(featuresVec[i]);
 	}
 	delete featuresVec;
 	return (score >= 0);
@@ -80,5 +81,5 @@ bool testImg(WeakClassifier* wc, int nFeatures, const Mat& img)
 
 bool testValid()
 {
-
+	return true;
 }

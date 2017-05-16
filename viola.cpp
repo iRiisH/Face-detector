@@ -17,17 +17,17 @@ int main(int argc, char **argv)
 {
 	MPI_Init(&argc, &argv);
 	srand(time(NULL));
-
-	image = imread("../im1.jpg", CV_LOAD_IMAGE_GRAYSCALE);
-	image.convertTo(image, CV_32F);
 	Mat image;
 	Mat ii;
-	imageIntegrale(image, ii);
-	vector<float> localFeature;
-	vector<float> features;
-	calcFeatures(ii, localFeature);
-	cout << "Computed vector : " << features.size() << endl;
+	image = imread("../im1.jpg", CV_LOAD_IMAGE_GRAYSCALE);
+	image.convertTo(image, CV_32F);
 
+	imageIntegrale(image, ii);
+	float* features;
+	int nFeatures;
+	calcFeatures(ii, features, nFeatures);
+	cout << "Computed vector : " << nFeatures << endl;
+	delete features;
 	MPI_Finalize();
 	return 0;
 }

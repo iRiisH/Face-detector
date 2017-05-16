@@ -6,6 +6,8 @@
 #include <iostream>
 #include <mpi.h>
 
+#include "feature.h"
+
 using namespace cv;
 using namespace std;
 
