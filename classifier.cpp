@@ -80,4 +80,5 @@ bool testImg(WeakClassifier* wc, int nFeatures, const Mat& img)
 
 bool testValid()
 {
+
 }

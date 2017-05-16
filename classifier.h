@@ -12,13 +12,10 @@ using namespace std;
 
 #define K 10
 #define EPSILON 0.1
-#define PROC_MASTER 0
 
 #define TOTAL_IMGS 5233
 #define POS_IMGS 818
 #define NEG_IMGS 5233
-
-#define 
 
 class WeakClassifier
 {
