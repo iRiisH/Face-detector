@@ -19,6 +19,8 @@ using namespace std;
 #define POS_IMGS 818
 #define NEG_IMGS 5233
 
+#define VALIDATION_SIZE 300
+
 class WeakClassifier
 {
 public:

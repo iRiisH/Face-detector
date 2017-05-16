@@ -63,6 +63,19 @@ void train (WeakClassifier* wc, int nFeatures)
 	}
 }
 
+int calcNFeatures()
+{
+	Mat img;
+	img = imread("../im1.jpg", CV_LOAD_IMAGE_GRAYSCALE);
+	img.convertTo(img, CV_32F);
+	Mat ii;
+	imageIntegrale(img, ii);
+	int nFeatures;
+	float* features;
+	calcFeatures(ii, features, nFeatures);
+	return nFeatures;
+}
+
 bool testImg(WeakClassifier* wc, int nFeatures, const Mat& img)
 {
 	Mat ii;
@@ -79,7 +92,21 @@ bool testImg(WeakClassifier* wc, int nFeatures, const Mat& img)
 	return (score >= 0);
 }
 
-bool testValid()
+float testValid(WeakClassifier* wc)
 {
-	return true;
+	int score = 0.;
+	int nFeatures = calcNFeatures();
+	for (int i = 0; i < VALIDATION_SIZE; i++)
+	{
+		Mat img;
+		int n = rand() % TOTAL_IMGS;
+		if (n < POS_IMGS)
+			img = imread("../dev/pos/im" + to_string(n) + ".jpg", CV_LOAD_IMAGE_GRAYSCALE);
+		else
+			img = imread("../dev/neg/im" + to_string(n - POS_IMGS) + ".jpg", CV_LOAD_IMAGE_GRAYSCALE);
+		img.convertTo(img, CV_32F);
+		if (testImg(wc, nFeatures, img))
+			score+=1.;
+	}
+	return score / (float)VALIDATION_SIZE;
 }
