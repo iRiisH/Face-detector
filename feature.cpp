@@ -233,5 +233,6 @@ void calcFeatures(Mat& ii, float *result, int& nFeatures)
 		PROC_MASTER, MPI_COMM_WORLD);
 	MPI_Bcast(result, totalSize, MPI_FLOAT, PROC_MASTER, MPI_COMM_WORLD);
 	delete localResult;
+	delete sizes;
 	nFeatures = finalSize;
 }
