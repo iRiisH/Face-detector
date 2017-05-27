@@ -25,19 +25,6 @@ float WeakClassifier::get_w2() const { return w2; }
 
 /// STATIC FUNCTIONS
 
-int calcNFeatures()
-{
-	Mat img;
-	img = imread("../../im1.jpg", CV_LOAD_IMAGE_GRAYSCALE);
-	img.convertTo(img, CV_32F);
-	Mat ii;
-	imageIntegrale(img, ii);
-	int nFeatures;
-	float* features;
-	calcFeatures(ii, features, nFeatures);
-	return nFeatures;
-}
-
 int pickRandomImage(int& c_k)
 {
 	int n = rand() % TOTAL_IMGS;
@@ -49,7 +36,6 @@ int pickRandomImage(int& c_k)
 	c_k = -1;
 	return n - POS_IMGS;
 }
-
 
 /*********************************/
 /**** class WeakClassifierSet ****/

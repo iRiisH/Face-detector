@@ -37,9 +37,6 @@ private:
 	float w1, w2;
 };
 
-// returns the number of features associated with a 112x92 image
-int calcNFeatures();
-
 // returns the id of a randomly picked image
 int pickRandomImage(int& c_k);
 

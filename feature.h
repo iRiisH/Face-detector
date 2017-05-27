@@ -28,6 +28,9 @@ void intToDimensions(int n, int &x, int &y, int &w, int &h);
 // so that the array computed does not depend on the number of processors used
 void shareComputation(float *localArray, int localSize, float *result, int& totalSize);
 
+// computes the number of features associated with a 112x92 image
+int calcNFeatures();
+
 // used to distribute the computation of features
 void calcLocalFeatures(Mat& ii, vector<float>& localResult);
 

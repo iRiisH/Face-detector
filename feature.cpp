@@ -215,10 +215,12 @@ void shareComputation(float *localArray, int localSize, float *result, int& tota
 			}
 		}
 	}
+	
 	MPI_Bcast(result, totalSize, MPI_FLOAT, PROC_MASTER, MPI_COMM_WORLD);
 	delete gathered;
 	delete sizes;
-	delete cumulativeSizes;
+	if (rank == PROC_MASTER)
+		delete cumulativeSizes;
 }
 
 void calcLocalFeatures(Mat& ii, vector<float>& localResult)
@@ -243,6 +245,35 @@ void calcLocalFeatures(Mat& ii, vector<float>& localResult)
 	}
 }
 
+int calcNFeatures()
+{
+	int rank, size;
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+	// opens a random image
+	Mat img;
+	img = imread("../../im1.jpg", CV_LOAD_IMAGE_GRAYSCALE);
+	img.convertTo(img, CV_32F);
+	Mat ii;
+	imageIntegrale(img, ii);
+	
+	vector<float> v;
+	calcLocalFeatures(ii, v);
+	float* localResult = vectorToArray<float>(v);
+	int localSize = v.size();
+	int* sizes = new int[size];
+	MPI_Gather(&localSize, 1, MPI_INT, sizes, 1, MPI_INT, PROC_MASTER, MPI_COMM_WORLD);
+	int totalSize = 0;
+	if (rank == 0)
+	{
+		for (int i = 0; i < size; i++)
+			totalSize += sizes[i];
+	}
+	delete localResult;
+	MPI_Bcast(&totalSize, 1, MPI_INT, PROC_MASTER, MPI_COMM_WORLD);
+	return totalSize;
+}
 
 
 void calcFeatures(Mat& ii, float *result, int& nFeatures)
@@ -257,12 +288,17 @@ void calcFeatures(Mat& ii, float *result, int& nFeatures)
 	float* localResult = vectorToArray<float>(v);
 	int localSize = v.size();
 	int* sizes = new int[size];
+	
 	MPI_Gather(&localSize, 1, MPI_INT, sizes, 1, MPI_INT, PROC_MASTER, MPI_COMM_WORLD);
 	int totalSize = 0;
-	for (int i = 0; i < size; i++)
-		totalSize += sizes[i];
-	result = new float[totalSize];
-
+	if (rank == 0)
+	{
+		for (int i = 0; i < size; i++)
+			totalSize += sizes[i];
+	}
+	MPI_Bcast(&totalSize, 1, MPI_INT, PROC_MASTER, MPI_COMM_WORLD);
+	MPI_Barrier(MPI_COMM_WORLD);
+	
 	shareComputation(localResult, localSize, result, totalSize);
 	
 	delete localResult;
