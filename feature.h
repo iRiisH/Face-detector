@@ -14,10 +14,24 @@ using namespace std;
 #define MAX_WIDTH 112
 #define MAX_HEIGHT 92
 
+// computes the integral image
 void imageIntegrale(const Mat& input, Mat& output);
+
+// the distribution of the features' computation is done along 4 coordinates. This function
+// is a bijection between all these coordinates and a segment to simplify the distribution
 void intToDimensions(int n, int &x, int &y, int &w, int &h);
+
+// usually the computations are distributed according to that pattern:
+// for (int i = rank ; i < totalSize ; i++)
+//		localResult.push_back (computation (i)) ;
+// this function is used to merge the local results, putting them in the original order,
+// so that the array computed does not depend on the number of processors used
 void shareComputation(float *localArray, int localSize, float *result, int& totalSize);
+
+// used to distribute the computation of features
 void calcLocalFeatures(Mat& ii, vector<float>& localResult);
+
+// merges the local features previously computed
 void calcFeatures(Mat& ii, float *finalResult, int& nFeatures);
 
 enum FeatureType {
@@ -31,6 +45,8 @@ enum FeatureType {
 	quadrupleV = 7
 };
 
+// the value of the sum of the pixels contained in a rectangle in a constant time,
+//  using Viola's method
 float rectangleVal(const Mat& integralImage, int xmin, int ymin, int xmax, int ymax);
 
 class Feature

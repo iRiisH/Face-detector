@@ -27,6 +27,9 @@ public:
 	WeakClassifier(float w_1, float w_2);
 	~WeakClassifier();
 	int h(float x) const;
+
+	// performs a train step, which consists in updating w1 & w2 given a coordinate
+	// of the original image, and the class associated with the image (1 or -1)
 	void train_step(float x_ki, int c_k);
 	float get_w1() const;
 	float get_w2() const;
@@ -34,7 +37,10 @@ private:
 	float w1, w2;
 };
 
+// returns the number of features associated with a 112x92 image
 int calcNFeatures();
+
+// returns the id of a randomly picked image
 int pickRandomImage(int& c_k);
 
 class WeakClassifierSet
@@ -48,6 +54,8 @@ public:
 	float testValid() const;
 
 private:
+	// it would be convenient to encode the list as a WeakClassifier array, but for
+	// distribution purposes it is easier to manipulate float arrays.
 	float* w1_list;
 	float* w2_list;
 	int nFeatures;
