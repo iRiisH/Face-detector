@@ -16,7 +16,7 @@ using namespace std;
 
 void imageIntegrale(const Mat& input, Mat& output);
 void intToDimensions(int n, int &x, int &y, int &w, int &h);
-void filltab(vector<float>& localresult, vector<float>& tab, vector<float>& result);
+void shareComputation(float *localArray, int localSize, float *result, int& totalSize);
 void calcLocalFeatures(Mat& ii, vector<float>& localResult);
 void calcFeatures(Mat& ii, float *finalResult, int& nFeatures);
 

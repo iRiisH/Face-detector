@@ -171,18 +171,55 @@ void intToDimensions(int n, int &x, int &y, int &w, int &h)
 	x = 4 * reste;
 }
 
-/*
-void filltab(vector<float>& localresult, vector<float>& tab, vector<float>& result) {
-for (int i = 0; i<localresult.size(); i++) {
-if (rank ) {
-result[tab[rank - 2] + i] = localresult[i];
-}//see if rank -1 ou -2
-else {
-result[i] = localresult[i];
-}
-}
 
-}*/
+
+
+void shareComputation(float *localArray, int localSize, float *result, int& totalSize)
+{
+
+	int rank, size;
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	MPI_Comm_size(MPI_COMM_WORLD, &size);
+	int* sizes = new int[size];
+	MPI_Gather(&localSize, 1, MPI_INT, sizes, 1, MPI_INT, PROC_MASTER, MPI_COMM_WORLD);
+	float* gathered;
+	int* cumulativeSizes;
+	if (rank == PROC_MASTER)
+	{
+		totalSize = 0;
+		cumulativeSizes = new int[size];
+		cumulativeSizes[0] = 0;
+		for (int i = 0; i < size; i++)
+		{
+			totalSize += sizes[i];
+			if (i == 0)
+				continue;
+			cumulativeSizes[i] = cumulativeSizes[i - 1] + sizes[i - 1];
+		}
+	}
+	MPI_Bcast(&totalSize, 1, MPI_INT, PROC_MASTER, MPI_COMM_WORLD);
+	gathered = new float[totalSize];
+	MPI_Gatherv(localArray, localSize, MPI_FLOAT, gathered, sizes, cumulativeSizes, MPI_FLOAT,
+		PROC_MASTER, MPI_COMM_WORLD);
+	if (rank == PROC_MASTER)
+	{
+		int cur = 0;
+		for (int i = 0; i < size; i++)
+		{
+			int cursor = i;
+			for (int j = 0; j < sizes[i]; j++)
+			{
+				result[cursor] = gathered[cur];
+				cursor += size;
+				cur++;
+			}
+		}
+	}
+	MPI_Bcast(result, totalSize, MPI_FLOAT, PROC_MASTER, MPI_COMM_WORLD);
+	delete gathered;
+	delete sizes;
+	delete cumulativeSizes;
+}
 
 void calcLocalFeatures(Mat& ii, vector<float>& localResult)
 {
@@ -206,6 +243,8 @@ void calcLocalFeatures(Mat& ii, vector<float>& localResult)
 	}
 }
 
+
+
 void calcFeatures(Mat& ii, float *result, int& nFeatures)
 // we have to be careful when regrouping the features, because doing it sequentially 
 // would suppress the acceleration we got from distributed computation of the features
@@ -220,19 +259,13 @@ void calcFeatures(Mat& ii, float *result, int& nFeatures)
 	int* sizes = new int[size];
 	MPI_Gather(&localSize, 1, MPI_INT, sizes, 1, MPI_INT, PROC_MASTER, MPI_COMM_WORLD);
 	int totalSize = 0;
-	if (rank == PROC_MASTER)
-	{
-		for (int i = 0; i < size; i++)
-			totalSize += sizes[i];
-	}
-	int finalSize = 0;
-	
-	MPI_Bcast(&totalSize, 1, MPI_INT, PROC_MASTER, MPI_COMM_WORLD);
+	for (int i = 0; i < size; i++)
+		totalSize += sizes[i];
 	result = new float[totalSize];
-	MPI_Gatherv(localResult, localSize, MPI_FLOAT, result, sizes, sizes, MPI_FLOAT,
-		PROC_MASTER, MPI_COMM_WORLD);
-	MPI_Bcast(result, totalSize, MPI_FLOAT, PROC_MASTER, MPI_COMM_WORLD);
+
+	shareComputation(localResult, localSize, result, totalSize);
+	
 	delete localResult;
 	delete sizes;
-	nFeatures = finalSize;
+	nFeatures = totalSize;
 }

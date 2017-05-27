@@ -24,15 +24,33 @@ using namespace std;
 class WeakClassifier
 {
 public:
-	WeakClassifier();
+	WeakClassifier(float w_1, float w_2);
 	~WeakClassifier();
 	int h(float x) const;
 	void train_step(float x_ki, int c_k);
+	float get_w1() const;
+	float get_w2() const;
 private:
 	float w1, w2;
 };
 
-void pickRandomImage(Mat &img, int c_k);
-void train();
+int calcNFeatures();
+int pickRandomImage(int& c_k);
+
+class WeakClassifierSet
+{
+public:
+	WeakClassifierSet();
+	~WeakClassifierSet();
+
+	void train();
+	bool testImg(const Mat& img) const;
+	float testValid() const;
+
+private:
+	float* w1_list;
+	float* w2_list;
+	int nFeatures;
+};
 
 #endif
