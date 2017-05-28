@@ -9,7 +9,7 @@
 using namespace cv;
 using namespace std; 
 
-#define PROC_MASTER 0
+#define PROC_MASTER 1
 
 #define MAX_WIDTH 112
 #define MAX_HEIGHT 92

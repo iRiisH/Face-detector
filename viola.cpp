@@ -37,15 +37,15 @@ int main(int argc, char **argv)
 void test1()
 // this tests the shareComputation function, on a simple example
 {
-	
+	int test_size = 15;
 	int rank, size;
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &size);
-	float *tab = new float[20];
-	for (int i = 0; i < 20; i++)
+	float *tab = new float[test_size];
+	for (int i = 0; i < test_size; i++)
 		tab[i] = (float)i;
 	vector<float> v;
-	for (int i = rank; i < 20; i += size)
+	for (int i = rank; i < test_size; i += size)
 	{
 		v.push_back(2 * i);
 	}
@@ -53,7 +53,7 @@ void test1()
 	float* localRes = vectorToArray<float>(v);
 	int totalSize;
 	MPI_Barrier(MPI_COMM_WORLD);
-	float *new_tab = new float[20];
+	float *new_tab = new float[test_size];
 	shareComputation(localRes, localSize, new_tab, totalSize);
 	if (rank == 0)
 	{
@@ -80,7 +80,7 @@ void test2()
 	float* result = new float[nFeatures];
 	cout << "computing " << nFeatures << " features..." << endl;
 	calcFeatures(ii, result, nFeatures);
-	if (rank == PROC_MASTER)
+	/*if (rank == PROC_MASTER)
 	{
 		cout << "Computed vector:" << endl;
 		for (int i = 0; i < 20; i++)
@@ -91,7 +91,7 @@ void test2()
 		cout << "..." << endl;
 		cout << "[the vector has actually " << nFeatures << " coordinates]" << endl;
 	}
-	delete[] result;
+	delete[] result;*/
 }
 
 void test3()
