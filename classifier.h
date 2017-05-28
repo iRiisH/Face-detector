@@ -12,12 +12,12 @@ using namespace cv;
 using namespace std;
 
 
-#define K 10
-#define EPSILON 0.1
+#define K 300
+#define EPSILON 0.5
 
 #define TOTAL_IMGS 5233
 #define POS_IMGS 818
-#define NEG_IMGS 5233
+#define NEG_IMGS 4415
 
 #define VALIDATION_SIZE 300
 

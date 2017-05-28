@@ -14,6 +14,7 @@ using namespace std;
 
 void test1();
 void test2();
+void test3();
 
 int main(int argc, char **argv)
 {
@@ -26,8 +27,9 @@ int main(int argc, char **argv)
 
 	//test1();
 	test2();
+	//test3();
 
-
+	// closing
 	MPI_Finalize();
 	return 0;
 }
@@ -39,11 +41,11 @@ void test1()
 	int rank, size;
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &size);
-	float *tab = new float[10];
-	for (int i = 0; i < 10; i++)
+	float *tab = new float[20];
+	for (int i = 0; i < 20; i++)
 		tab[i] = (float)i;
 	vector<float> v;
-	for (int i = rank; i < 10; i += size)
+	for (int i = rank; i < 20; i += size)
 	{
 		v.push_back(2 * i);
 	}
@@ -51,7 +53,7 @@ void test1()
 	float* localRes = vectorToArray<float>(v);
 	int totalSize;
 	MPI_Barrier(MPI_COMM_WORLD);
-	float *new_tab = new float[10];
+	float *new_tab = new float[20];
 	shareComputation(localRes, localSize, new_tab, totalSize);
 	if (rank == 0)
 	{
@@ -59,7 +61,6 @@ void test1()
 		for (int j = 0; j < totalSize; j++)
 			cout << new_tab[j] << endl;
 	}
-	
 }
 
 void test2()
@@ -74,9 +75,10 @@ void test2()
 	img.convertTo(img, CV_32F);
 	Mat ii;
 	imageIntegrale(img, ii);
-
+	
 	int nFeatures = calcNFeatures();
 	float* result = new float[nFeatures];
+	cout << "computing " << nFeatures << " features..." << endl;
 	calcFeatures(ii, result, nFeatures);
 	if (rank == PROC_MASTER)
 	{
@@ -89,5 +91,27 @@ void test2()
 		cout << "..." << endl;
 		cout << "[the vector has actually " << nFeatures << " coordinates]" << endl;
 	}
-	delete result;
+	delete[] result;
+}
+
+void test3()
+// trains and tests the weak classifiers on the validation set
+// see classifier.h to set the hyperparameters
+{
+	int rank, size;
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+	WeakClassifierSet wcs;
+	wcs.train();
+	MPI_Barrier(MPI_COMM_WORLD);
+	if (rank == PROC_MASTER)
+		cout << "Training complete" << endl;
+	float score = wcs.testValid();
+	if (rank == PROC_MASTER)
+	{
+		score *= 100.;
+		cout << "Testing complete" << endl;
+		cout << "Score: " << score << "%" << endl;
+	}
 }

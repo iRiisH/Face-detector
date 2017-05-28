@@ -35,7 +35,7 @@ int calcNFeatures();
 void calcLocalFeatures(Mat& ii, vector<float>& localResult);
 
 // merges the local features previously computed
-void calcFeatures(Mat& ii, float *finalResult, int& nFeatures);
+void calcFeatures(Mat& ii, float *result, int nFeatures);
 
 enum FeatureType {
 	doubleH1 = 0,

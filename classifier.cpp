@@ -61,43 +61,69 @@ WeakClassifierSet::~WeakClassifierSet()
 
 void WeakClassifierSet::train ()
 {
+	int rank, size;
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+	int nFeatures = calcNFeatures();
+	vector<float> w1_trained, w2_trained;
+	for (int j = rank; j < nFeatures; j += size)
+	{
+		w1_trained.push_back(w1_list[j]);
+		w2_trained.push_back(w2_list[j]);
+	}
+
+	// actual training loop
 	for (int i = 0; i < K; i++)
 	{
 		Mat img, ii;
 		int c_k;
-		int rank, size;
-		MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-		MPI_Comm_size(MPI_COMM_WORLD, &size);
+		// randomly choosing an image to use, then computing its features
 		float* featuresVec;
 		int n_img;
 		if (rank == PROC_MASTER)
 		{
 			n_img = pickRandomImage(c_k);
-			cout << "Training on im" + to_string(n_img) + ".jpg" << endl;
+			char c = (c_k == 1) ? '+' : '-';
+			cout << (i + 1) << ": training on " << c << "im" + to_string(n_img) + ".jpg" << endl;
 		}
 		MPI_Bcast(&n_img, 1, MPI_INT, PROC_MASTER, MPI_COMM_WORLD);
 		MPI_Bcast(&c_k, 1, MPI_INT, PROC_MASTER, MPI_COMM_WORLD);
+
 		string path;
 		if (c_k == 1)
 			path = "../../train/pos/im";
 		else
 			path = "../../train/neg/im";
 		path += to_string(n_img) + ".jpg";
+
 		img = imread(path, CV_LOAD_IMAGE_GRAYSCALE);
+
 		img.convertTo(img, CV_32F);
 		imageIntegrale(img, ii);
-		int nF;
-		calcFeatures(ii, featuresVec, nF);
-		MPI_Barrier(MPI_COMM_WORLD);
-		for (int j = rank; j < nFeatures; j+= size)
+
+		featuresVec = new float[nFeatures];
+		calcFeatures(ii, featuresVec, nFeatures);
+
+		// distributed updating of w1 & w2
+		int cur = rank;
+		for (int j = 0; j < w1_trained.size(); j++)
 		{
-			WeakClassifier wc(w1_list[j], w2_list[j]);
-			wc.train_step(featuresVec[j], c_k);
-			w1_list[j] = wc.get_w1();
-			w2_list[j] = wc.get_w2();
+			WeakClassifier wc(w1_trained[j], w2_trained[j]);
+			wc.train_step(featuresVec[cur], c_k);
+			w1_trained[j] = wc.get_w1();
+			w2_trained[j] = wc.get_w2();
+			cur += size;
 		}
+		delete featuresVec;
 		MPI_Barrier(MPI_COMM_WORLD);
 	}
+	if (rank == PROC_MASTER)
+		cout << endl;
+	float* localW1 = vectorToArray<float>(w1_trained);
+	float* localW2 = vectorToArray<float>(w2_trained);
+	shareComputation(localW1, w1_trained.size(), w1_list, nFeatures);
+	shareComputation(localW2, w2_trained.size(), w2_list, nFeatures);
 }
 
 
@@ -107,14 +133,20 @@ bool WeakClassifierSet::testImg(const Mat& img) const
 	Mat ii;
 	imageIntegrale(img, ii);
 	float *featuresVec = new float[nFeatures];
-	int nF;
-	calcFeatures(ii, featuresVec, nF);
+	calcFeatures(ii, featuresVec, nFeatures);
+
 	int score = 0;
-	for (int i = 0; i < nFeatures; i++)
+	int rank;
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	if (rank == PROC_MASTER)
 	{
-		WeakClassifier wc(w1_list[i], w2_list[i]);
-		score += wc.h(featuresVec[i]);
+		for (int i = 0; i < nFeatures; i++)
+		{
+			WeakClassifier wc(w1_list[i], w2_list[i]);
+			score += wc.h(featuresVec[i]);
+		}
 	}
+	MPI_Bcast(&score, 1, MPI_INT, PROC_MASTER, MPI_COMM_WORLD);
 	delete featuresVec;
 	return (score >= 0);
 }
@@ -126,6 +158,7 @@ float WeakClassifierSet::testValid() const
 	{
 		Mat img;
 		int n = rand() % TOTAL_IMGS;
+		//cout << "testing on img No. " << n << endl;
 		if (n < POS_IMGS)
 			img = imread("../../valid/pos/im" + to_string(n) + ".jpg", CV_LOAD_IMAGE_GRAYSCALE);
 		else

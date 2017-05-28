@@ -1,7 +1,5 @@
 #include "feature.h"
 
-
-
 void imageIntegrale(const Mat& input, Mat& output)
 {
 	int m = input.rows, n = input.cols;
@@ -176,13 +174,11 @@ void intToDimensions(int n, int &x, int &y, int &w, int &h)
 
 void shareComputation(float *localArray, int localSize, float *result, int& totalSize)
 {
-
 	int rank, size;
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &size);
 	int* sizes = new int[size];
 	MPI_Gather(&localSize, 1, MPI_INT, sizes, 1, MPI_INT, PROC_MASTER, MPI_COMM_WORLD);
-	float* gathered;
 	int* cumulativeSizes;
 	if (rank == PROC_MASTER)
 	{
@@ -198,9 +194,20 @@ void shareComputation(float *localArray, int localSize, float *result, int& tota
 		}
 	}
 	MPI_Bcast(&totalSize, 1, MPI_INT, PROC_MASTER, MPI_COMM_WORLD);
-	gathered = new float[totalSize];
-	MPI_Gatherv(localArray, localSize, MPI_FLOAT, gathered, sizes, cumulativeSizes, MPI_FLOAT,
-		PROC_MASTER, MPI_COMM_WORLD);
+	float *gathered = new float[totalSize];
+	//for (int i = 0; i < localSize; i++)
+	//{
+		//cout << rank << " - " << i << " - " << localArray[i] << endl;
+	//}
+
+	//cout << localSize << " - " << rank << endl;
+	//cout << "total size: " << totalSize << '[' << rank << ']' << endl;
+	//cout << "cumulative size " << cumulativeSizes[2] << "-" <<rank << endl;
+	cout << "yay" << endl;
+	MPI_Gatherv(localArray, localSize, MPI_FLOAT, gathered, sizes, cumulativeSizes, MPI_FLOAT, PROC_MASTER, MPI_COMM_WORLD);
+	MPI_Barrier(MPI_COMM_WORLD);
+
+	//cout << "inter" << rank << endl;
 	if (rank == PROC_MASTER)
 	{
 		int cur = 0;
@@ -215,12 +222,15 @@ void shareComputation(float *localArray, int localSize, float *result, int& tota
 			}
 		}
 	}
-	
+	//cout << "barrier" << rank << endl;
+
 	MPI_Bcast(result, totalSize, MPI_FLOAT, PROC_MASTER, MPI_COMM_WORLD);
-	delete gathered;
-	delete sizes;
+	delete[] gathered;
+	delete[] sizes;
 	if (rank == PROC_MASTER)
-		delete cumulativeSizes;
+		delete[] cumulativeSizes;
+	///cout << "finex" << endl;
+
 }
 
 void calcLocalFeatures(Mat& ii, vector<float>& localResult)
@@ -265,18 +275,18 @@ int calcNFeatures()
 	int* sizes = new int[size];
 	MPI_Gather(&localSize, 1, MPI_INT, sizes, 1, MPI_INT, PROC_MASTER, MPI_COMM_WORLD);
 	int totalSize = 0;
-	if (rank == 0)
+	if (rank == PROC_MASTER)
 	{
 		for (int i = 0; i < size; i++)
 			totalSize += sizes[i];
 	}
-	delete localResult;
+	delete[] localResult;
 	MPI_Bcast(&totalSize, 1, MPI_INT, PROC_MASTER, MPI_COMM_WORLD);
 	return totalSize;
 }
 
 
-void calcFeatures(Mat& ii, float *result, int& nFeatures)
+void calcFeatures(Mat& ii, float *result, int nFeatures)
 // we have to be careful when regrouping the features, because doing it sequentially 
 // would suppress the acceleration we got from distributed computation of the features
 {
@@ -284,24 +294,17 @@ void calcFeatures(Mat& ii, float *result, int& nFeatures)
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &size);
 	vector<float> v;
+	
 	calcLocalFeatures(ii, v);
+	
 	float* localResult = vectorToArray<float>(v);
 	int localSize = v.size();
 	int* sizes = new int[size];
-	
-	MPI_Gather(&localSize, 1, MPI_INT, sizes, 1, MPI_INT, PROC_MASTER, MPI_COMM_WORLD);
-	int totalSize = 0;
-	if (rank == 0)
-	{
-		for (int i = 0; i < size; i++)
-			totalSize += sizes[i];
-	}
-	MPI_Bcast(&totalSize, 1, MPI_INT, PROC_MASTER, MPI_COMM_WORLD);
+	cout << "barrier " << rank << endl;
 	MPI_Barrier(MPI_COMM_WORLD);
-	
-	shareComputation(localResult, localSize, result, totalSize);
-	
-	delete localResult;
-	delete sizes;
-	nFeatures = totalSize;
+	cout << "local size = " << localSize << endl;
+	cout << "checking... " << localResult[localSize - 1] << endl;
+	shareComputation(localResult, localSize, result, nFeatures);
+	delete[] localResult;
+	delete[] sizes;
 }
