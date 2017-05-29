@@ -80,7 +80,7 @@ void test2()
 	float* result = new float[nFeatures];
 	cout << "computing " << nFeatures << " features..." << endl;
 	calcFeatures(ii, result, nFeatures);
-	/*if (rank == PROC_MASTER)
+	if (rank == PROC_MASTER)
 	{
 		cout << "Computed vector:" << endl;
 		for (int i = 0; i < 20; i++)
@@ -91,7 +91,7 @@ void test2()
 		cout << "..." << endl;
 		cout << "[the vector has actually " << nFeatures << " coordinates]" << endl;
 	}
-	delete[] result;*/
+	delete[] result;
 }
 
 void test3()

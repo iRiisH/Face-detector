@@ -304,7 +304,8 @@ void calcFeatures(Mat& ii, float *result, int nFeatures)
 	MPI_Barrier(MPI_COMM_WORLD);
 	cout << "local size = " << localSize << endl;
 	cout << "checking... " << localResult[localSize - 1] << endl;
-	shareComputation(localResult, localSize, result, nFeatures);
+	// THERE IS SOME FUCKED UP SHIT HAPPENING RIGHT THERE
+	//shareComputation(localResult, localSize, result, nFeatures);
 	delete[] localResult;
 	delete[] sizes;
 }
