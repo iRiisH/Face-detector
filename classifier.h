@@ -12,14 +12,14 @@ using namespace cv;
 using namespace std;
 
 
-#define K 300
-#define EPSILON 0.5
+#define K 4000
+#define EPSILON 0.001
 
 #define TOTAL_IMGS 5233
 #define POS_IMGS 818
 #define NEG_IMGS 4415
 
-#define VALIDATION_SIZE 300
+#define VALIDATION_SIZE 500
 
 class WeakClassifier
 {
@@ -46,9 +46,14 @@ public:
 	WeakClassifierSet();
 	~WeakClassifierSet();
 
+	// trains the weak classifiers
 	void train();
+	// returns true if the image is classified as a face, false else
 	bool testImg(const Mat& img) const;
+	// returns the rate of good classification on a dataset of size VALIDATION_SIZE
 	float testValid() const;
+	// basically the same function as above, but on the whole validation set (slower)
+	float testWholeValidationSet() const;
 
 private:
 	// it would be convenient to encode the list as a WeakClassifier array, but for

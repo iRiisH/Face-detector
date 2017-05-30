@@ -26,8 +26,8 @@ int main(int argc, char **argv)
 	srand(time(NULL));
 
 	//test1();
-	test2();
-	//test3();
+	//test2();
+	test3();
 
 	// closing
 	MPI_Finalize();
@@ -103,15 +103,21 @@ void test3()
 	MPI_Comm_size(MPI_COMM_WORLD, &size);
 
 	WeakClassifierSet wcs;
+	if (rank == PROC_MASTER)
+		cout << "Training..." << endl;
 	wcs.train();
 	MPI_Barrier(MPI_COMM_WORLD);
 	if (rank == PROC_MASTER)
+	{
 		cout << "Training complete" << endl;
-	float score = wcs.testValid();
+		cout << "Testing..." << endl;
+	}
+	// evaluates the performance of the weak classifiers on the validation set
+	float score = wcs.testWholeValidationSet();
 	if (rank == PROC_MASTER)
 	{
 		score *= 100.;
-		cout << "Testing complete" << endl;
+		cout << endl << "Testing complete" << endl;
 		cout << "Score: " << score << "%" << endl;
 	}
 }

@@ -169,9 +169,6 @@ void intToDimensions(int n, int &x, int &y, int &w, int &h)
 	x = 4 * reste;
 }
 
-
-
-
 void shareComputation(float *localArray, int localSize, float *result, int& totalSize)
 {
 	int rank, size;
@@ -195,19 +192,10 @@ void shareComputation(float *localArray, int localSize, float *result, int& tota
 	}
 	MPI_Bcast(&totalSize, 1, MPI_INT, PROC_MASTER, MPI_COMM_WORLD);
 	float *gathered = new float[totalSize];
-	//for (int i = 0; i < localSize; i++)
-	//{
-		//cout << rank << " - " << i << " - " << localArray[i] << endl;
-	//}
 
-	//cout << localSize << " - " << rank << endl;
-	//cout << "total size: " << totalSize << '[' << rank << ']' << endl;
-	//cout << "cumulative size " << cumulativeSizes[2] << "-" <<rank << endl;
-	cout << "yay" << endl;
 	MPI_Gatherv(localArray, localSize, MPI_FLOAT, gathered, sizes, cumulativeSizes, MPI_FLOAT, PROC_MASTER, MPI_COMM_WORLD);
 	MPI_Barrier(MPI_COMM_WORLD);
 
-	//cout << "inter" << rank << endl;
 	if (rank == PROC_MASTER)
 	{
 		int cur = 0;
@@ -222,14 +210,12 @@ void shareComputation(float *localArray, int localSize, float *result, int& tota
 			}
 		}
 	}
-	//cout << "barrier" << rank << endl;
 
 	MPI_Bcast(result, totalSize, MPI_FLOAT, PROC_MASTER, MPI_COMM_WORLD);
 	delete[] gathered;
 	delete[] sizes;
 	if (rank == PROC_MASTER)
 		delete[] cumulativeSizes;
-	///cout << "finex" << endl;
 
 }
 
@@ -300,12 +286,8 @@ void calcFeatures(Mat& ii, float *result, int nFeatures)
 	float* localResult = vectorToArray<float>(v);
 	int localSize = v.size();
 	int* sizes = new int[size];
-	cout << "barrier " << rank << endl;
 	MPI_Barrier(MPI_COMM_WORLD);
-	cout << "local size = " << localSize << endl;
-	cout << "checking... " << localResult[localSize - 1] << endl;
-	// THERE IS SOME FUCKED UP SHIT HAPPENING RIGHT THERE
-	//shareComputation(localResult, localSize, result, nFeatures);
+	shareComputation(localResult, localSize, result, nFeatures);
 	delete[] localResult;
 	delete[] sizes;
 }

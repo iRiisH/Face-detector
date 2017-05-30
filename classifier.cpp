@@ -64,7 +64,7 @@ void WeakClassifierSet::train ()
 	int rank, size;
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &size);
-
+	const int barWidth = 50;
 	int nFeatures = calcNFeatures();
 	vector<float> w1_trained, w2_trained;
 	for (int j = rank; j < nFeatures; j += size)
@@ -84,8 +84,18 @@ void WeakClassifierSet::train ()
 		if (rank == PROC_MASTER)
 		{
 			n_img = pickRandomImage(c_k);
-			char c = (c_k == 1) ? '+' : '-';
-			cout << (i + 1) << ": training on " << c << "im" + to_string(n_img) + ".jpg" << endl;
+			string s = (c_k == 1) ? "pos/" : "neg/";
+			float progress = (float)i / (float)K;
+			cout << "[";
+			for (int j = 0; j < barWidth; j++)
+			{
+				if (j < progress*barWidth)
+					cout << "=";
+				else
+					cout << " ";
+			}
+			cout << "] " << (int)(progress*100) << "% [" << s << "im" + to_string(n_img) + ".jpg]\r";
+			cout.flush();
 		}
 		MPI_Bcast(&n_img, 1, MPI_INT, PROC_MASTER, MPI_COMM_WORLD);
 		MPI_Bcast(&c_k, 1, MPI_INT, PROC_MASTER, MPI_COMM_WORLD);
@@ -153,19 +163,89 @@ bool WeakClassifierSet::testImg(const Mat& img) const
 
 float WeakClassifierSet::testValid() const
 {
-	int score = 0.;
+	float score = 0.;
+	int rank, barWidth = 60;
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	for (int i = 0; i < VALIDATION_SIZE; i++)
 	{
 		Mat img;
 		int n = rand() % TOTAL_IMGS;
+		if (rank == PROC_MASTER && (i + 1) % 10 == 0)
+		{
+			float progress = (float)i / (float)VALIDATION_SIZE;
+			cout << "[";
+			for (int j = 0; j < barWidth; j++)
+			{
+				if ((float)j < progress*(float)barWidth)
+					cout << "=";
+				else
+					cout << " ";
+			}
+			cout << "] " << (int)(progress*100) << "% [im" << n << ".jpg]\r";
+			cout.flush();
+		}
 		//cout << "testing on img No. " << n << endl;
+		int c_k;
 		if (n < POS_IMGS)
+		{
 			img = imread("../../valid/pos/im" + to_string(n) + ".jpg", CV_LOAD_IMAGE_GRAYSCALE);
+			c_k = 1;
+		}
 		else
-			img = imread("../../valid/neg/im" + to_string(n - POS_IMGS) + ".jpg", CV_LOAD_IMAGE_GRAYSCALE);
+		{
+			img = imread("../../valid/neg/im" + to_string(n - POS_IMGS) + ".jpg",
+				CV_LOAD_IMAGE_GRAYSCALE);
+			c_k = -1;
+		}
 		img.convertTo(img, CV_32F);
-		if (testImg(img))
+		bool val = testImg(img);
+		if ((val && c_k == 1) || (!val && c_k == -1))
 			score+=1.;
 	}
 	return score / (float)VALIDATION_SIZE;
+}
+
+float WeakClassifierSet::testWholeValidationSet() const
+{
+	int size, rank;
+	const int barWidth = 50;
+	MPI_Comm_size(MPI_COMM_WORLD, &size);
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	float score = 0.;
+	for (int i = 0; i < TOTAL_IMGS; i++)
+	{
+		int c_k;
+		string path;
+		if (i < POS_IMGS)
+		{
+			path = "../../valid/pos/im" + to_string(i) + ".jpg";
+			c_k = 1;
+		}
+		else
+		{
+			path = "../../valid/neg/im" + to_string(i - POS_IMGS) + ".jpg";
+			c_k = -1;
+		}
+		if (rank == PROC_MASTER && (i + 1) % 10 == 0)
+		{
+			float progress = (float)i / (float)TOTAL_IMGS;
+			cout << "[";
+			for (int j = 0; j < barWidth; j++)
+			{
+				if ((float)j < progress*(float)barWidth)
+					cout << "=";
+				else
+					cout << " ";
+			}
+			cout << "] " << (int)(progress * 100) << "% [im" << i << ".jpg]\r";
+			cout.flush();
+		}
+		Mat img;
+		img = imread(path, CV_LOAD_IMAGE_GRAYSCALE);
+		img.convertTo(img, CV_32F);
+		bool val = testImg(img);
+		if ((val && c_k == 1) || (!val && c_k == -1))
+			score += 1.;
+	}
+	return score / (float)TOTAL_IMGS;
 }
