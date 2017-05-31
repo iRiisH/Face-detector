@@ -15,6 +15,8 @@ using namespace std;
 void test1();
 void test2();
 void test3();
+bool classify(Mat& img, WeakClassifier* wc, float* alpha, int nFeatures);
+void detector(Mat& img, WeakClassifier* wc, float* alpha);
 
 int main(int argc, char **argv)
 {
@@ -139,5 +141,40 @@ void test4()
 		cout << "Training complete" << endl;
 		cout << "Boosting..." << endl;
 	}
-	adaboost (
+	adaboost();
+}
+
+bool classify(Mat& img, WeakClassifier* wc, int* indexes, float* alpha, int nFeatures)
+{
+	int cascade_size = 5;
+	int cascade[5] = { 1, 10, 25, 50, N };
+	assert(img.cols == 92 && img.rows == 112);
+	assert(wc.size() == N);
+	Mat ii;
+	imageIntegrale(img, ii);
+	float* features = new float[nFeatures];
+	calcFeatures(ii, features, nFeatures);
+
+	for (int i = 0; i < cascade_size; i++)
+	{
+		float sum1 = 0., sum2 = 0.;
+		for (int j = 0; j < cascade[i]; j++)
+		{
+			sum1 += alpha[j] * wc[j].h(features[indexes[j]]);
+			sum2 += alpha[j];
+		}
+		if (sum1 < THETA*sum2)
+			return false;
+	}
+	return true;
+}
+
+void detector(Mat& img, WeakClassifier* wc, float* alpha)
+{
+	const float ratio = 112. / 92.;
+	for (int w = 20; w < img.cols; w += 6)
+	{
+		int h = (int)(ratio*w);
+
+	}
 }

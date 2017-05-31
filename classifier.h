@@ -23,6 +23,7 @@ using namespace std;
 #define VALIDATION_SIZE 500
 
 #define N 200 // 6000 are used in the paper
+#define THETA 0.5
 
 class WeakClassifier
 {
@@ -73,6 +74,6 @@ float alpha(float epsilon);
 int minInd(float* error, int nFeatures);
 void updateWeights(float alpha, WeakClassifier h_k, int ind, float* lambda, int nFeatures);
 void adaboost(float* w1_list, float* w2_list, int nFeatures, vector<WeakClassifier>& result,
-	vector<float>& alpha_list);
+	vector<float>& alpha_list, vector<int>& indexes);
 
 #endif

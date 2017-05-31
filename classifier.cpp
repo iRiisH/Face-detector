@@ -353,7 +353,7 @@ void updateWeights(float alpha, WeakClassifier h_k, int ind, float* lambda, int 
 }
 
 void adaboost(float* w1_list, float* w2_list, int nFeatures, vector<WeakClassifier>& result,
-	vector<float>& alpha_list)
+	vector<float>& alpha_list, vector<int>& indexes)
 {
 	float* lambda = new float[TOTAL_IMGS];
 	WeakClassifier* wc = new WeakClassifier[nFeatures];
@@ -375,6 +375,7 @@ void adaboost(float* w1_list, float* w2_list, int nFeatures, vector<WeakClassifi
 		float epsilon = errors[ind];
 		float a = alpha(epsilon);
 		alpha_list.push_back(a);
+		indexes.push_back(ind);
 		updateWeights(a, wc[ind], ind, lambda, nFeatures);
 	}
 	delete[] wc;
