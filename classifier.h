@@ -12,8 +12,8 @@ using namespace cv;
 using namespace std;
 
 
-#define K 4000
-#define EPSILON 0.001
+#define K 3000
+#define EPSILON 0.0001
 
 #define TOTAL_IMGS 5233
 #define POS_IMGS 818

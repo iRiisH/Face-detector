@@ -272,6 +272,7 @@ int calcNFeatures()
 }
 
 
+
 void calcFeatures(Mat& ii, float *result, int nFeatures)
 // we have to be careful when regrouping the features, because doing it sequentially 
 // would suppress the acceleration we got from distributed computation of the features
@@ -288,6 +289,9 @@ void calcFeatures(Mat& ii, float *result, int nFeatures)
 	int* sizes = new int[size];
 	MPI_Barrier(MPI_COMM_WORLD);
 	shareComputation(localResult, localSize, result, nFeatures);
+	// we need to reduce the value of features, for convergence purposes
+	for (int i = 0; i < nFeatures; i++)
+		result[i] /= NORM_VAL;
 	delete[] localResult;
 	delete[] sizes;
 }

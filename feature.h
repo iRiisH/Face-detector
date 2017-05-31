@@ -14,6 +14,8 @@ using namespace std;
 #define MAX_WIDTH 112
 #define MAX_HEIGHT 92
 
+#define NORM_VAL 5000.
+
 // computes the integral image
 void imageIntegrale(const Mat& input, Mat& output);
 

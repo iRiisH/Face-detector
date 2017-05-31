@@ -112,7 +112,8 @@ void test3()
 		cout << "Training complete" << endl;
 		cout << "Testing..." << endl;
 	}
-	// evaluates the performance of the weak classifiers on the validation set
+	// notice that the obtained score corresponds to the ratio of faces in the databases,
+	// which indicates that most weak classifiers are meaningless.
 	float score = wcs.testWholeValidationSet();
 	if (rank == PROC_MASTER)
 	{

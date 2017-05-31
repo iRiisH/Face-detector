@@ -64,6 +64,8 @@ void WeakClassifierSet::train ()
 	int rank, size;
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &size);
+	//ofstream fichier1("../../w1.txt", ios::out | ios::trunc);
+	//ofstream fichier2("../../w2.txt", ios::out | ios::trunc);
 	const int barWidth = 50;
 	int nFeatures = calcNFeatures();
 	vector<float> w1_trained, w2_trained;
@@ -83,6 +85,8 @@ void WeakClassifierSet::train ()
 		int n_img;
 		if (rank == PROC_MASTER)
 		{
+			//fichier1 << w1_trained[9000] << endl;
+			//fichier2 << w2_trained[9000] << endl;
 			n_img = pickRandomImage(c_k);
 			string s = (c_k == 1) ? "pos/" : "neg/";
 			float progress = (float)i / (float)K;
@@ -128,6 +132,8 @@ void WeakClassifierSet::train ()
 		delete featuresVec;
 		MPI_Barrier(MPI_COMM_WORLD);
 	}
+	//fichier1.close();
+	//fichier2.close();
 	if (rank == PROC_MASTER)
 		cout << endl;
 	float* localW1 = vectorToArray<float>(w1_trained);
