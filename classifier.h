@@ -5,6 +5,7 @@
 #include <opencv2/opencv.hpp>
 #include <iostream>
 #include <mpi.h>
+#include <math.h>
 
 #include "feature.h"
 
@@ -21,10 +22,13 @@ using namespace std;
 
 #define VALIDATION_SIZE 500
 
+#define N 200 // 6000 are used in the paper
+
 class WeakClassifier
 {
 public:
 	WeakClassifier(float w_1, float w_2);
+	WeakClassifier();
 	~WeakClassifier();
 	int h(float x) const;
 
@@ -62,5 +66,13 @@ private:
 	float* w2_list;
 	int nFeatures;
 };
+
+int E(int h, int c);
+void weightedError(WeakClassifier* wc, float* lambda, float* errors, int nFeatures);
+float alpha(float epsilon);
+int minInd(float* error, int nFeatures);
+void updateWeights(float alpha, WeakClassifier h_k, int ind, float* lambda, int nFeatures);
+void adaboost(float* w1_list, float* w2_list, int nFeatures, vector<WeakClassifier>& result,
+	vector<float>& alpha_list);
 
 #endif

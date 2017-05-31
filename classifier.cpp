@@ -5,6 +5,7 @@
 /******************************/
 
 WeakClassifier::WeakClassifier(float w_1, float w_2) :w1(w_1), w2(w_2) {}
+WeakClassifier::WeakClassifier() : w1(1.), w2(0.) {}
 
 WeakClassifier::~WeakClassifier() {}
 
@@ -254,4 +255,129 @@ float WeakClassifierSet::testWholeValidationSet() const
 			score += 1.;
 	}
 	return score / (float)TOTAL_IMGS;
+}
+
+/************************************/
+/************* ADABOOST *************/
+/************************************/
+
+
+
+int E(int h, int c)
+{
+	return (h == c) ? 0 : 1;
+}
+
+void weightedError(WeakClassifier* wc, float* lambda, float* errors, int nFeatures)
+{
+	float* features = new float[nFeatures];
+	for (int i = 0; i < nFeatures; i++)
+		errors[i] = 0.;
+	
+	for (int j = 0; j < TOTAL_IMGS; j++)
+	{
+		string path;
+		int c_k;
+		if (j < POS_IMGS)
+		{
+			path = "../../valid/pos/im" + to_string(j) + ".jpg";
+			c_k = 1;
+		}
+		else
+		{
+			path = "../../valid/neg/im" + to_string(j - POS_IMGS) + ".jpg";
+			c_k = -1;
+		}
+		Mat img = imread(path, CV_LOAD_IMAGE_GRAYSCALE), ii;
+		img.convertTo(img, CV_32F);
+		imageIntegrale(img, ii);
+		calcFeatures(ii, features, nFeatures);
+		// this is the biggest computation, as there are 5233x214000 features to compute
+		for (int i = 0; i < nFeatures; i++)
+		{
+			errors[i] += lambda[j] * E(wc[i].h(features[i]), c_k);
+		}
+	}
+}
+
+float alpha(float epsilon)
+{
+	return 0.5*log((1. - epsilon) / epsilon);
+}
+
+
+int minInd (float* error, int nFeatures)
+{
+	float min = error[0];
+	int ind = 0;
+	for (int i = 0; i < nFeatures; i++)
+	{
+		if (error[i] < min)
+		{
+			ind = i;
+			min = error[i];
+		}
+	}
+	return ind;
+}
+
+void updateWeights(float alpha, WeakClassifier h_k, int ind, float* lambda, int nFeatures)
+{
+	float* features = new float[nFeatures];
+	float sum = 0.;
+	for (int j = 0; j < TOTAL_IMGS; j++)
+	{
+		string path;
+		int c_j;
+		if (j < POS_IMGS)
+		{
+			path = "../../valid/pos/im" + to_string(j) + ".jpg";
+			c_j = 1;
+		}
+		else
+		{
+			path = "../../valid/neg/im" + to_string(j - POS_IMGS) + ".jpg";
+			c_j = -1;
+		}
+		Mat img = imread(path, CV_LOAD_IMAGE_GRAYSCALE), ii;
+		img.convertTo(img, CV_32F);
+		imageIntegrale(img, ii);
+		calcFeatures(ii, features, nFeatures);
+		lambda[j] = lambda[j] * exp(-c_j*alpha*h_k.h(features[ind]));
+	}
+
+	// renormalization
+	for (int j = 0; j < TOTAL_IMGS; j++)
+		lambda[j] /= sum;
+	delete[] features;
+}
+
+void adaboost(float* w1_list, float* w2_list, int nFeatures, vector<WeakClassifier>& result,
+	vector<float>& alpha_list)
+{
+	float* lambda = new float[TOTAL_IMGS];
+	WeakClassifier* wc = new WeakClassifier[nFeatures];
+
+	float* errors = new float[nFeatures];
+
+	// initializing...
+	for (int i = 0; i < TOTAL_IMGS; i++)
+		lambda[i] = 1. / (float)TOTAL_IMGS;
+	for (int i = 0; i < nFeatures; i++)
+		wc[i] = WeakClassifier(w1_list[i], w2_list[i]);
+	
+	// actual loop
+	for (int i = 0; i < N; i++)
+	{
+		weightedError(wc, lambda, errors, nFeatures);
+		int ind = minInd(errors, nFeatures);
+		result.push_back(wc[ind]);
+		float epsilon = errors[ind];
+		float a = alpha(epsilon);
+		alpha_list.push_back(a);
+		updateWeights(a, wc[ind], ind, lambda, nFeatures);
+	}
+	delete[] wc;
+	delete[] errors;
+	delete[] lambda;
 }

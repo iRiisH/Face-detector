@@ -122,3 +122,22 @@ void test3()
 		cout << "Score: " << score << "%" << endl;
 	}
 }
+
+void test4()
+{
+	int rank, size;
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+	WeakClassifierSet wcs;
+	if (rank == PROC_MASTER)
+		cout << "Training..." << endl;
+	wcs.train();
+	MPI_Barrier(MPI_COMM_WORLD);
+	if (rank == PROC_MASTER)
+	{
+		cout << "Training complete" << endl;
+		cout << "Boosting..." << endl;
+	}
+	adaboost (
+}
