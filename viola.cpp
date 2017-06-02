@@ -19,8 +19,11 @@ void test2();
 // trains and tests the weak classifiers on the validation set
 // see classifier.h to set the hyperparameters
 void test3();
-// trains the adaboost classifier and tests it
+// tests the file manipulation functions
 void test4();
+// trains the adaboost classifier and tests it
+void test5();
+
 bool classify(Mat& img, WeakClassifier* wc, int* indexes, float* alpha, int nFeatures);
 void detector(Mat& img, WeakClassifier* wc, float* alpha);
 
@@ -36,7 +39,8 @@ int main(int argc, char **argv)
 	//test1();
 	//test2();
 	//test3();
-	test4();
+	//test4();
+	test5();
 
 	// closing
 	MPI_Finalize();
@@ -133,6 +137,30 @@ void test3()
 
 void test4()
 {
+	int rank, i = 0;
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	if (rank == PROC_MASTER)
+	{
+		float val[3];
+		int ind[3];
+		read_line("test_file.txt", i, val, ind, 3);
+		cout << "Line " << i << " of test_file.txt contains:" << endl;
+		for (int i = 0; i < 3; i++)
+			cout << val[i] << " at pos " << ind[i] << endl;
+
+		float column[3] = { 1.1, 1.2, 1.3 };
+		int index[3] = { 1,4,9 };
+		cout << "Adding a new column..." << endl;
+		appendColumn("test_file.txt", column, index);
+		
+		float val2[4] = { 1.1, 1.1, 1.1, 1.1 }; 
+		int ind2[4] = { 1, 2, 3, 4 };
+		rewrite_line("test_file.txt", 1, val2, ind2, 4);
+	}
+}
+
+void test5()
+{
 	int rank, size;
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -164,7 +192,6 @@ bool classify(Mat& img, WeakClassifier* wc, int* indexes, float* alpha, int nFea
 	int cascade_size = 5;
 	int cascade[5] = { 1, 10, 25, 50, N };
 	assert(img.cols == 92 && img.rows == 112);
-	assert(wc.size() == N);
 	Mat ii;
 	imageIntegrale(img, ii);
 	float* features = new float[nFeatures];

@@ -77,13 +77,24 @@ private:
 	int nFeatures;
 };
 
+// file operations for "big" arrays manipulation
+void initFile(string filename, int nFeatures);
+void appendColumn(string filename, float* val, int* index);
+void read_line(string filename, int i, float* val, int* index, int lg);
+void rewrite_line(string filename, int i, float* val, int* index, int lg);
+
+// adaboost
 int E(int h, int c);
-void initFeatures(int nFeatures, float** features);
-void weightedErrors(float** features, WeakClassifier* wc, float* lambda, float* errors, int nFeatures);
+void initFeatures(int nFeatures, int* pivotPoint, WeakClassifier* wc, string filename);
+void computeSums(float& tP, float& tM, float* sP, float* sM, float* lambda,
+	const int* pivotPoint, int nFeatures, string filename);
+float alpha(float epsilon);
+void weightedErrors(float tP, float tM, float* sP, float* sM, float* errors, int nFeatures);
 float alpha(float epsilon);
 int minInd(float* error, int nFeatures);
-void updateWeights(float alpha, WeakClassifier h_k, int ind, float* lambda, float** features, int nFeatures);
+void updateWeights(string filename, float alpha, WeakClassifier h_k, int ind, float* lambda, int nFeatures);
 void adaboost(float* w1_list, float* w2_list, int nFeatures, vector<WeakClassifier>& result,
 	vector<float>& alpha_list, vector<int>& indexes);
+void saveClassifier(vector<int> indexes, vector<float> alpha);
 
 #endif

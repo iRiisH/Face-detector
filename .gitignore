@@ -3,3 +3,6 @@ bin/*
 test/*
 train/*
 valid/*
+result.txt
+temp.txt
+features.txt

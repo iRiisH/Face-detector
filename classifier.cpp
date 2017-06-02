@@ -299,6 +299,110 @@ void WeakClassifierSet::load(string filename) const
 		cout << "Erreur d'ouverture du fichier " << filename << endl;
 }
 
+//////////////////////////////////////////
+////////// file manipulation /////////////
+//////////////////////////////////////////
+
+void initFile(string filename, int nFeatures)
+{
+	ofstream file("../../" + filename, ios::out);
+	if (!file)
+	{
+		cout << "erreur de chargement de " << filename << endl;
+		return;
+	}
+	for (int i = 0; i < nFeatures; i++)
+		file << endl;
+	file.close();
+}
+
+void appendColumn(string filename, float* val, int* index)
+{
+	string line;
+
+	ifstream fin;
+	fin.open("../../" + filename);
+	ofstream temp;
+	temp.open("../../temp.txt");
+
+	int cnt = 0;
+	while (getline(fin, line))
+	{
+		line += " " + to_string(val[cnt]) + " " + to_string(index[cnt]);
+		cnt++;
+		temp << line << endl;
+	}
+
+	temp.close();
+	fin.close();
+	string s_temp = "../../" + filename;
+	char *f_temp = new char[s_temp.size()+1];
+	for (int i = 0; i < s_temp.size(); i++)
+		f_temp[i] = s_temp[i];
+	f_temp[s_temp.size()] = 0;
+	remove(f_temp);
+	rename("../../temp.txt", f_temp);
+	delete[] f_temp;
+}
+
+void read_line(string filename, int i, float* val, int* index, int lg)
+{
+	ifstream file("../../" + filename, ios::in);
+	if (!file)
+	{
+		cout << "erreur de lecture de " << filename << endl;
+		return;
+	}
+
+	// skip the initial lines
+	string buf;
+	for (int cnt = 0; cnt < i; cnt++)
+		getline(file, buf);
+	// reads the good line
+	for (int j = 0; j < lg; j++)
+	{
+		file >> val[j];
+		file >> index[j];
+	}
+	file.close();
+}
+
+void rewrite_line(string filename, int i, float* val, int* index, int lg)
+{
+	string line;
+
+	ifstream fin;
+	fin.open("../../" + filename);
+	ofstream temp;
+	temp.open("../../temp.txt");
+
+	int cnt = 0;
+	while (getline(fin, line))
+	{
+
+		if (cnt == i)
+		{
+			for (int j = 0; j < lg; j++)
+				temp << val[j] << " " << index[j] << " ";
+			temp << endl;
+		}
+		else
+			temp << line << endl;
+		cnt++;
+	}
+
+	temp.close();
+	fin.close();
+	string s_temp = "../../" + filename;
+	char *f_temp = new char[s_temp.size() + 1];
+	for (int i = 0; i < s_temp.size(); i++)
+		f_temp[i] = s_temp[i];
+	f_temp[s_temp.size()] = 0;
+	remove(f_temp);
+	rename("../../temp.txt", f_temp);
+	delete[] f_temp;
+}
+
 /************************************/
 /************* ADABOOST *************/
 /************************************/
@@ -340,22 +444,20 @@ int E(int h, int c)
 	return (h == c) ? 0 : 1;
 }
 
-void initFeatures(int nFeatures, float** features, int** indexes, int* pivotPoint, WeakClassifier* wc)
+void initFeatures(int nFeatures, int* pivotPoint, WeakClassifier* wc, string filename)
 {
 	int rank;
 	const int barWidth = 50;
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	int* column_ind;
 	if (rank == PROC_MASTER)
 	{
-		pivotPoint = new int[nFeatures];
-		features = new float*[nFeatures];
-		indexes = new int*[nFeatures];
+		column_ind = new int[nFeatures];
 		for (int i = 0; i < nFeatures; i++)
-		{
-			features[i] = new float[TOTAL_IMGS];
-			indexes[i] = new int[TOTAL_IMGS];
-		}
+			column_ind[i] = i;
+		pivotPoint = new int[nFeatures];
 		cout << "Initializing features array..." << endl;
+		initFile(filename, nFeatures);
 	}
 	// initializing features array
 	for (int j = 0; j < TOTAL_IMGS; j++)
@@ -379,11 +481,7 @@ void initFeatures(int nFeatures, float** features, int** indexes, int* pivotPoin
 		calcFeatures(ii, temp, nFeatures);
 		if (rank == PROC_MASTER)
 		{
-			for (int i = 0; i < nFeatures; i++)
-			{
-				features[i][j] = temp[i];
-				indexes[i][j] = j;
-			}
+			appendColumn(filename, temp, column_ind);
 			float progress = (float)j / (float)TOTAL_IMGS;
 			cout << "[";
 			for (int j = 0; j < barWidth; j++)
@@ -398,50 +496,57 @@ void initFeatures(int nFeatures, float** features, int** indexes, int* pivotPoin
 		}
 		delete[] temp;		
 	}
-
-	for (int i = 0; i < nFeatures; i++)
-		quickSort(features[i], indexes[i], 0, TOTAL_IMGS - 1);
-
-	for (int i = 0; i < nFeatures; i++)
+	if (rank == PROC_MASTER)
 	{
-		int prec, pivot = 0;
-		bool found = false;
-		for (int j = 0; j < TOTAL_IMGS; j++)
+		cout << "Sorting features..." << endl;
+		float *val = new float[TOTAL_IMGS];
+		int *ind = new int[TOTAL_IMGS];
+		for (int i = 0; i < nFeatures; i++)
 		{
-			if (found)
-				break;
-			int val = wc[i].h(features[i][j]);
-			if (j > 0)
+			read_line(filename, i, val, ind, TOTAL_IMGS);
+			quickSort(val, ind, 0, TOTAL_IMGS - 1);
+			rewrite_line(filename, i, val, ind, TOTAL_IMGS);
+		}
+		for (int i = 0; i < nFeatures; i++)
+		{
+			read_line(filename, i, val, ind, TOTAL_IMGS);
+			int prec, pivot = 0;
+			bool found = false;
+			for (int j = 0; j < TOTAL_IMGS; j++)
 			{
-				if (val != prec)
+				if (found)
+					break;
+				int v = wc[ind[i]].h(val[i]);
+				if (j > 0)
 				{
-					pivotPoint[i] = j;
-					found = true;
+					if (v != prec)
+					{
+						pivotPoint[i] = j;
+						found = true;
+					}
 				}
+				prec = v;
 			}
-			prec = val;
 		}
 	}
-
-	if (rank == PROC_MASTER)
-		cout << endl << "done!" << endl;
-
 }
 
 void computeSums(float& tP, float& tM, float* sP, float* sM, float* lambda,
-	const int* pivotPoint, int nFeatures, int** indexes)
+	const int* pivotPoint, int nFeatures, string filename)
 {
+	float* val = new float[TOTAL_IMGS];
+	int* ind = new int[TOTAL_IMGS];
 	for (int i = 0; i < nFeatures; i++)
 	{
 		sP[i] = 0.;
 		sM[i] = 0.;
+		read_line(filename, i, val, ind, TOTAL_IMGS);
 		for (int j = 0; j < pivotPoint[i]; j++)
 		{
-			int ind = indexes[i][j];
-			if (ind < POS_IMGS)
-				sP[i] += lambda[ind];
+			if (ind[j] < POS_IMGS)
+				sP[i] += lambda[ind[j]];
 			else
-				sM[i] += lambda[ind];
+				sM[i] += lambda[ind[j]];
 		}
 	}
 	tP = 0.;
@@ -482,13 +587,16 @@ int minInd (float* error, int nFeatures)
 	return ind;
 }
 
-void updateWeights(float alpha, WeakClassifier h_k, int ind, float* lambda, float** features, int nFeatures)
+void updateWeights(string filename, float alpha, WeakClassifier h_k, int ind, float* lambda, int nFeatures)
 {
 	float sum = 0.;
+	float* val = new float[TOTAL_IMGS];
+	int* indexes = new int[TOTAL_IMGS];
+	read_line(filename, ind, val, indexes, TOTAL_IMGS);
 	for (int j = 0; j < TOTAL_IMGS; j++)
 	{
 		int c_j = (j < POS_IMGS) ? 1 : -1;
-		lambda[j] = lambda[j] * exp(-c_j*alpha*h_k.h(features[ind][j]));
+		lambda[j] = lambda[j] * exp(-c_j*alpha*h_k.h(val[j]));
 	}
 
 	// renormalization
@@ -496,6 +604,18 @@ void updateWeights(float alpha, WeakClassifier h_k, int ind, float* lambda, floa
 		lambda[j] /= sum;
 }
 
+void savePivotPoints(int* pivot, int nFeatures)
+{
+	ofstream file("pivot.txt", ios::out);
+	if (!file)
+		cout << "error loading pivot.txt" << endl;
+	else
+	{
+		for (int i = 0; i < nFeatures; i++)
+			file << pivot[i] << endl;
+	}
+	file.close();
+}
 void adaboost(float* w1_list, float* w2_list, int nFeatures, vector<WeakClassifier>& result,
 	vector<float>& alpha_list, vector<int>& indexes)
 {
@@ -507,24 +627,22 @@ void adaboost(float* w1_list, float* w2_list, int nFeatures, vector<WeakClassifi
 		*sP = new float[nFeatures], *sM = new float[nFeatures];
 	int* pivotPoint;
 	WeakClassifier* wc = new WeakClassifier[nFeatures];
-	float** features;
-	int** order;
 
 	// initializing...
 	for (int i = 0; i < TOTAL_IMGS; i++)
 		lambda[i] = 1. / (float)TOTAL_IMGS;
 	for (int i = 0; i < nFeatures; i++)
 		wc[i] = WeakClassifier(w1_list[i], w2_list[i]);
-	initFeatures(nFeatures, features, order, pivotPoint, wc);
+
+	initFeatures(nFeatures, pivotPoint, wc, "features.txt");
 	// actual loop
-	for (int i = 0; i < N; i++)
+	/*for (int i = 0; i < N; i++)
 	{
 		if (rank == PROC_MASTER)
 		{
 			cout << "Loop No. " << i + 1 << endl;
 			cout << "computing weighted error" << endl;
-			cout << features[0][0] << endl;
-			computeSums(tP, tM, sP, sM, lambda, pivotPoint, nFeatures, order);
+			computeSums(tP, tM, sP, sM, lambda, pivotPoint, nFeatures, "features.txt");
 			weightedErrors(tP, tM, sP, sM, errors, nFeatures);
 			cout << "seeking for min classifier" << endl;
 			int ind = minInd(errors, nFeatures);
@@ -534,21 +652,28 @@ void adaboost(float* w1_list, float* w2_list, int nFeatures, vector<WeakClassifi
 			alpha_list.push_back(a);
 			indexes.push_back(ind);
 			cout << "updating weights" << endl;
-			updateWeights(a, wc[ind], ind, lambda, features, nFeatures);
+			updateWeights("features.txt", a, wc[ind], ind, lambda, nFeatures);
 		}
 	}
+	saveClassifier(indexes, alpha_list);*/
 	delete[] wc;
 	delete[] errors;
 	delete[] lambda;
 	if (rank == PROC_MASTER)
-	{
 		delete[] pivotPoint;
-		for (int i = 0; i < nFeatures; i++)
-		{
-			delete[] features[i];
-			delete[] order[i];
-		}
-		delete[] order;
-		delete[] features;
+}
+
+////////////////////////////////////////
+/////////// save classifier ////////////
+////////////////////////////////////////
+
+void saveClassifier(vector<int> indexes, vector<float> alpha)
+{
+	int n = indexes.size();
+	ofstream file("../../result.txt", ios::out);
+	for (int i = 0; i < n; i++)
+	{
+		file << alpha[i] << " " << indexes[i] << endl;
 	}
+	file.close();
 }
