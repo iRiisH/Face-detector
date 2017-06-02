@@ -191,8 +191,37 @@ void shareComputation(float *localArray, int localSize, float *result, int& tota
 		}
 	}
 	MPI_Bcast(&totalSize, 1, MPI_INT, PROC_MASTER, MPI_COMM_WORLD);
-	float *gathered = new float[totalSize];
+	MPI_Gatherv(localArray, localSize, MPI_FLOAT, result, sizes, cumulativeSizes, MPI_FLOAT, PROC_MASTER, MPI_COMM_WORLD);
+	MPI_Barrier(MPI_COMM_WORLD);
 
+	delete[] sizes;
+	if (rank == PROC_MASTER)
+		delete[] cumulativeSizes;
+}
+
+void shareComputationReorder(float *localArray, int localSize, float *result, int& totalSize)
+{
+	int rank, size;
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	MPI_Comm_size(MPI_COMM_WORLD, &size);
+	int* sizes = new int[size];
+	MPI_Gather(&localSize, 1, MPI_INT, sizes, 1, MPI_INT, PROC_MASTER, MPI_COMM_WORLD);
+	int* cumulativeSizes;
+	if (rank == PROC_MASTER)
+	{
+		totalSize = 0;
+		cumulativeSizes = new int[size];
+		cumulativeSizes[0] = 0;
+		for (int i = 0; i < size; i++)
+		{
+			totalSize += sizes[i];
+			if (i == 0)
+				continue;
+			cumulativeSizes[i] = cumulativeSizes[i - 1] + sizes[i - 1];
+		}
+	}
+	MPI_Bcast(&totalSize, 1, MPI_INT, PROC_MASTER, MPI_COMM_WORLD);
+	float *gathered = new float[totalSize];
 	MPI_Gatherv(localArray, localSize, MPI_FLOAT, gathered, sizes, cumulativeSizes, MPI_FLOAT, PROC_MASTER, MPI_COMM_WORLD);
 	MPI_Barrier(MPI_COMM_WORLD);
 
@@ -210,13 +239,15 @@ void shareComputation(float *localArray, int localSize, float *result, int& tota
 			}
 		}
 	}
-
 	MPI_Bcast(result, totalSize, MPI_FLOAT, PROC_MASTER, MPI_COMM_WORLD);
-	delete[] gathered;
+	MPI_Barrier(MPI_COMM_WORLD);
 	delete[] sizes;
 	if (rank == PROC_MASTER)
 		delete[] cumulativeSizes;
 
+	delete[] gathered;
+
+	
 }
 
 void calcLocalFeatures(Mat& ii, vector<float>& localResult)

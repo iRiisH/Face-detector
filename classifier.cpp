@@ -60,6 +60,17 @@ WeakClassifierSet::~WeakClassifierSet()
 	delete w2_list;
 }
 
+float* WeakClassifierSet::get_w1() const
+{
+	return w1_list;
+}
+
+float* WeakClassifierSet::get_w2() const
+{
+	return w2_list;
+}
+
+
 void WeakClassifierSet::train ()
 {
 	int rank, size;
@@ -139,8 +150,8 @@ void WeakClassifierSet::train ()
 		cout << endl;
 	float* localW1 = vectorToArray<float>(w1_trained);
 	float* localW2 = vectorToArray<float>(w2_trained);
-	shareComputation(localW1, w1_trained.size(), w1_list, nFeatures);
-	shareComputation(localW2, w2_trained.size(), w2_list, nFeatures);
+	shareComputationReorder(localW1, w1_trained.size(), w1_list, nFeatures);
+	shareComputationReorder(localW2, w2_trained.size(), w2_list, nFeatures);
 }
 
 
@@ -257,23 +268,96 @@ float WeakClassifierSet::testWholeValidationSet() const
 	return score / (float)TOTAL_IMGS;
 }
 
+void WeakClassifierSet::save(string filename) const
+{
+	ofstream file("../../" + filename, ios::out | ios::trunc);
+	if (file)
+	{
+		for (int i = 0; i < nFeatures; i++)
+			file << w1_list[i] << " " << w2_list[i] << endl;
+		file.close();
+	}
+	else
+		cout << "Erreur d'ouverture du fichier " << filename << endl;
+	return;
+}
+
+void WeakClassifierSet::load(string filename) const
+{
+	cout << "loading..." << endl;
+	ifstream file("../../" + filename, ios::in);
+	if (file)
+	{
+		for (int i = 0; i < nFeatures; i++)
+		{
+			file >> w1_list[i] >> w2_list[i];
+		}
+		cout << "finished" << endl;
+		file.close();
+	}
+	else
+		cout << "Erreur d'ouverture du fichier " << filename << endl;
+}
+
 /************************************/
 /************* ADABOOST *************/
 /************************************/
 
+void quickSort(float* arr, int* indexes, int left, int right)
+{
+	int i = left, j = right;
+	float tmp;
+	int tmp2;
+	float pivot = arr[(left + right) / 2];
 
+	/* partition */
+	while (i <= j) {
+		while (arr[i] < pivot)
+			i++;
+		while (arr[j] > pivot)
+			j--;
+		if (i <= j) {
+			tmp = arr[i];
+			tmp2 = indexes[i];
+			arr[i] = arr[j];
+			indexes[i] = indexes[j];
+			arr[j] = tmp;
+			indexes[j] = tmp2;
+			i++;
+			j--;
+		}
+	};
+
+	/* recursion */
+	if (left < j)
+		quickSort(arr, indexes, left, j);
+	if (i < right)
+		quickSort(arr, indexes, i, right);
+}
 
 int E(int h, int c)
 {
 	return (h == c) ? 0 : 1;
 }
 
-void weightedError(WeakClassifier* wc, float* lambda, float* errors, int nFeatures)
+void initFeatures(int nFeatures, float** features, int** indexes, int* pivotPoint, WeakClassifier* wc)
 {
-	float* features = new float[nFeatures];
-	for (int i = 0; i < nFeatures; i++)
-		errors[i] = 0.;
-	
+	int rank;
+	const int barWidth = 50;
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	if (rank == PROC_MASTER)
+	{
+		pivotPoint = new int[nFeatures];
+		features = new float*[nFeatures];
+		indexes = new int*[nFeatures];
+		for (int i = 0; i < nFeatures; i++)
+		{
+			features[i] = new float[TOTAL_IMGS];
+			indexes[i] = new int[TOTAL_IMGS];
+		}
+		cout << "Initializing features array..." << endl;
+	}
+	// initializing features array
 	for (int j = 0; j < TOTAL_IMGS; j++)
 	{
 		string path;
@@ -291,13 +375,90 @@ void weightedError(WeakClassifier* wc, float* lambda, float* errors, int nFeatur
 		Mat img = imread(path, CV_LOAD_IMAGE_GRAYSCALE), ii;
 		img.convertTo(img, CV_32F);
 		imageIntegrale(img, ii);
-		calcFeatures(ii, features, nFeatures);
-		// this is the biggest computation, as there are 5233x214000 features to compute
-		for (int i = 0; i < nFeatures; i++)
+		float* temp = new float[nFeatures];
+		calcFeatures(ii, temp, nFeatures);
+		if (rank == PROC_MASTER)
 		{
-			errors[i] += lambda[j] * E(wc[i].h(features[i]), c_k);
+			for (int i = 0; i < nFeatures; i++)
+			{
+				features[i][j] = temp[i];
+				indexes[i][j] = j;
+			}
+			float progress = (float)j / (float)TOTAL_IMGS;
+			cout << "[";
+			for (int j = 0; j < barWidth; j++)
+			{
+				if (j < progress*barWidth)
+					cout << "=";
+				else
+					cout << " ";
+			}
+			cout << "] " << (int)(progress * 100) << "%\r";
+			cout.flush();
+		}
+		delete[] temp;		
+	}
+
+	for (int i = 0; i < nFeatures; i++)
+		quickSort(features[i], indexes[i], 0, TOTAL_IMGS - 1);
+
+	for (int i = 0; i < nFeatures; i++)
+	{
+		int prec, pivot = 0;
+		bool found = false;
+		for (int j = 0; j < TOTAL_IMGS; j++)
+		{
+			if (found)
+				break;
+			int val = wc[i].h(features[i][j]);
+			if (j > 0)
+			{
+				if (val != prec)
+				{
+					pivotPoint[i] = j;
+					found = true;
+				}
+			}
+			prec = val;
 		}
 	}
+
+	if (rank == PROC_MASTER)
+		cout << endl << "done!" << endl;
+
+}
+
+void computeSums(float& tP, float& tM, float* sP, float* sM, float* lambda,
+	const int* pivotPoint, int nFeatures, int** indexes)
+{
+	for (int i = 0; i < nFeatures; i++)
+	{
+		sP[i] = 0.;
+		sM[i] = 0.;
+		for (int j = 0; j < pivotPoint[i]; j++)
+		{
+			int ind = indexes[i][j];
+			if (ind < POS_IMGS)
+				sP[i] += lambda[ind];
+			else
+				sM[i] += lambda[ind];
+		}
+	}
+	tP = 0.;
+	tM = 0.;
+	for (int j = 0; j < TOTAL_IMGS; j++)
+	{
+		if (j < POS_IMGS)
+			tP += lambda[j];
+		else
+			tM += lambda[j];
+	}
+}
+
+void weightedErrors(float tP, float tM, float* sP, float* sM, float* errors, int nFeatures)
+{
+	for (int i = 0; i < nFeatures; i++)
+		errors[i] = min(sP[i] + (tM - sM[i]), sM[i] + (tP - sP[i]));
 }
 
 float alpha(float epsilon)
@@ -321,64 +482,73 @@ int minInd (float* error, int nFeatures)
 	return ind;
 }
 
-void updateWeights(float alpha, WeakClassifier h_k, int ind, float* lambda, int nFeatures)
+void updateWeights(float alpha, WeakClassifier h_k, int ind, float* lambda, float** features, int nFeatures)
 {
-	float* features = new float[nFeatures];
 	float sum = 0.;
 	for (int j = 0; j < TOTAL_IMGS; j++)
 	{
-		string path;
-		int c_j;
-		if (j < POS_IMGS)
-		{
-			path = "../../valid/pos/im" + to_string(j) + ".jpg";
-			c_j = 1;
-		}
-		else
-		{
-			path = "../../valid/neg/im" + to_string(j - POS_IMGS) + ".jpg";
-			c_j = -1;
-		}
-		Mat img = imread(path, CV_LOAD_IMAGE_GRAYSCALE), ii;
-		img.convertTo(img, CV_32F);
-		imageIntegrale(img, ii);
-		calcFeatures(ii, features, nFeatures);
-		lambda[j] = lambda[j] * exp(-c_j*alpha*h_k.h(features[ind]));
+		int c_j = (j < POS_IMGS) ? 1 : -1;
+		lambda[j] = lambda[j] * exp(-c_j*alpha*h_k.h(features[ind][j]));
 	}
 
 	// renormalization
 	for (int j = 0; j < TOTAL_IMGS; j++)
 		lambda[j] /= sum;
-	delete[] features;
 }
 
 void adaboost(float* w1_list, float* w2_list, int nFeatures, vector<WeakClassifier>& result,
 	vector<float>& alpha_list, vector<int>& indexes)
 {
-	float* lambda = new float[TOTAL_IMGS];
+	int size, rank;
+	MPI_Comm_size(MPI_COMM_WORLD, &size);
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	float tP, tM;
+	float* lambda = new float[TOTAL_IMGS], *errors = new float[nFeatures],
+		*sP = new float[nFeatures], *sM = new float[nFeatures];
+	int* pivotPoint;
 	WeakClassifier* wc = new WeakClassifier[nFeatures];
-
-	float* errors = new float[nFeatures];
+	float** features;
+	int** order;
 
 	// initializing...
 	for (int i = 0; i < TOTAL_IMGS; i++)
 		lambda[i] = 1. / (float)TOTAL_IMGS;
 	for (int i = 0; i < nFeatures; i++)
 		wc[i] = WeakClassifier(w1_list[i], w2_list[i]);
-	
+	initFeatures(nFeatures, features, order, pivotPoint, wc);
 	// actual loop
 	for (int i = 0; i < N; i++)
 	{
-		weightedError(wc, lambda, errors, nFeatures);
-		int ind = minInd(errors, nFeatures);
-		result.push_back(wc[ind]);
-		float epsilon = errors[ind];
-		float a = alpha(epsilon);
-		alpha_list.push_back(a);
-		indexes.push_back(ind);
-		updateWeights(a, wc[ind], ind, lambda, nFeatures);
+		if (rank == PROC_MASTER)
+		{
+			cout << "Loop No. " << i + 1 << endl;
+			cout << "computing weighted error" << endl;
+			cout << features[0][0] << endl;
+			computeSums(tP, tM, sP, sM, lambda, pivotPoint, nFeatures, order);
+			weightedErrors(tP, tM, sP, sM, errors, nFeatures);
+			cout << "seeking for min classifier" << endl;
+			int ind = minInd(errors, nFeatures);
+			result.push_back(wc[ind]);
+			float epsilon = errors[ind];
+			float a = alpha(epsilon);
+			alpha_list.push_back(a);
+			indexes.push_back(ind);
+			cout << "updating weights" << endl;
+			updateWeights(a, wc[ind], ind, lambda, features, nFeatures);
+		}
 	}
 	delete[] wc;
 	delete[] errors;
 	delete[] lambda;
+	if (rank == PROC_MASTER)
+	{
+		delete[] pivotPoint;
+		for (int i = 0; i < nFeatures; i++)
+		{
+			delete[] features[i];
+			delete[] order[i];
+		}
+		delete[] order;
+		delete[] features;
+	}
 }

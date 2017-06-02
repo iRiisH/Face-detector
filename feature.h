@@ -28,6 +28,9 @@ void intToDimensions(int n, int &x, int &y, int &w, int &h);
 //		localResult.push_back (computation (i)) ;
 // this function is used to merge the local results, putting them in the original order,
 // so that the array computed does not depend on the number of processors used
+void shareComputationReorder(float *localArray, int localSize, float *result, int& totalSize);
+
+// does the same, without reordering
 void shareComputation(float *localArray, int localSize, float *result, int& totalSize);
 
 // computes the number of features associated with a 112x92 image

@@ -4,6 +4,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
 #include <iostream>
+#include <fstream>
 #include <mpi.h>
 #include <math.h>
 
@@ -60,6 +61,14 @@ public:
 	// basically the same function as above, but on the whole validation set (slower)
 	float testWholeValidationSet() const;
 
+	float* get_w1() const;
+	float* get_w2() const;
+
+	// saves trained classifiers
+	// should be ran by only 1 processor
+	void save(string filename) const;
+	void load(string filename) const;
+
 private:
 	// it would be convenient to encode the list as a WeakClassifier array, but for
 	// distribution purposes it is easier to manipulate float arrays.
@@ -69,10 +78,11 @@ private:
 };
 
 int E(int h, int c);
-void weightedError(WeakClassifier* wc, float* lambda, float* errors, int nFeatures);
+void initFeatures(int nFeatures, float** features);
+void weightedErrors(float** features, WeakClassifier* wc, float* lambda, float* errors, int nFeatures);
 float alpha(float epsilon);
 int minInd(float* error, int nFeatures);
-void updateWeights(float alpha, WeakClassifier h_k, int ind, float* lambda, int nFeatures);
+void updateWeights(float alpha, WeakClassifier h_k, int ind, float* lambda, float** features, int nFeatures);
 void adaboost(float* w1_list, float* w2_list, int nFeatures, vector<WeakClassifier>& result,
 	vector<float>& alpha_list, vector<int>& indexes);
 

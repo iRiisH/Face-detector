@@ -12,10 +12,16 @@
 using namespace cv;
 using namespace std;
 
+// this tests the shareComputation function, on a simple example
 void test1();
+// this function tests the distributed features computation
 void test2();
+// trains and tests the weak classifiers on the validation set
+// see classifier.h to set the hyperparameters
 void test3();
-bool classify(Mat& img, WeakClassifier* wc, float* alpha, int nFeatures);
+// trains the adaboost classifier and tests it
+void test4();
+bool classify(Mat& img, WeakClassifier* wc, int* indexes, float* alpha, int nFeatures);
 void detector(Mat& img, WeakClassifier* wc, float* alpha);
 
 int main(int argc, char **argv)
@@ -29,7 +35,8 @@ int main(int argc, char **argv)
 
 	//test1();
 	//test2();
-	test3();
+	//test3();
+	test4();
 
 	// closing
 	MPI_Finalize();
@@ -37,7 +44,6 @@ int main(int argc, char **argv)
 }
 
 void test1()
-// this tests the shareComputation function, on a simple example
 {
 	int test_size = 15;
 	int rank, size;
@@ -56,6 +62,7 @@ void test1()
 	int totalSize;
 	MPI_Barrier(MPI_COMM_WORLD);
 	float *new_tab = new float[test_size];
+
 	shareComputation(localRes, localSize, new_tab, totalSize);
 	if (rank == 0)
 	{
@@ -66,7 +73,6 @@ void test1()
 }
 
 void test2()
-// this function tests the distributed features computation
 {
 	int rank, size;
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -97,8 +103,6 @@ void test2()
 }
 
 void test3()
-// trains and tests the weak classifiers on the validation set
-// see classifier.h to set the hyperparameters
 {
 	int rank, size;
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -112,16 +116,18 @@ void test3()
 	if (rank == PROC_MASTER)
 	{
 		cout << "Training complete" << endl;
-		cout << "Testing..." << endl;
+		cout << "saving..." << endl;
+		//cout << "Testing..." << endl;
 	}
 	// notice that the obtained score corresponds to the ratio of faces in the databases,
 	// which indicates that most weak classifiers are meaningless.
-	float score = wcs.testWholeValidationSet();
+	//float score = wcs.testWholeValidationSet();
 	if (rank == PROC_MASTER)
 	{
-		score *= 100.;
+		wcs.save("save.txt");
+		/*score *= 100.;
 		cout << endl << "Testing complete" << endl;
-		cout << "Score: " << score << "%" << endl;
+		cout << "Score: " << score << "%" << endl;*/
 	}
 }
 
@@ -130,18 +136,27 @@ void test4()
 	int rank, size;
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &size);
+	int nFeatures = calcNFeatures();
 
 	WeakClassifierSet wcs;
-	if (rank == PROC_MASTER)
+	/*if (rank == PROC_MASTER)
 		cout << "Training..." << endl;
 	wcs.train();
-	MPI_Barrier(MPI_COMM_WORLD);
+	MPI_Barrier(MPI_COMM_WORLD);*/
+
 	if (rank == PROC_MASTER)
 	{
+		wcs.load("save.txt");
 		cout << "Training complete" << endl;
 		cout << "Boosting..." << endl;
 	}
-	adaboost();
+	MPI_Bcast(wcs.get_w1(), nFeatures, MPI_FLOAT, PROC_MASTER, MPI_COMM_WORLD);
+	MPI_Bcast(wcs.get_w2(), nFeatures, MPI_FLOAT, PROC_MASTER, MPI_COMM_WORLD);
+	vector<WeakClassifier> result;
+	vector<float> alpha;
+	vector<int> indexes;
+	adaboost(wcs.get_w1 (), wcs.get_w2 (), nFeatures, result, alpha, indexes);
+	cout << "Boosting finished, " << result.size() << " features." << endl;
 }
 
 bool classify(Mat& img, WeakClassifier* wc, int* indexes, float* alpha, int nFeatures)
